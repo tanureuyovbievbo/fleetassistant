@@ -4,7 +4,17 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+- `manifest.json` keys are sorted the way hassfest requires, and declare the integration
+  categories (`energy.energy_prices`, `energy.solar_batteries`).
+- `LICENSE` is the untouched Apache-2.0 text so licence scanners detect it; the edit-later
+  note now lives at the top of `NOTICE` (RL-33).
+- Dropped `async_setup`, which hassfest flags unless a module-level `CONFIG_SCHEMA` exists -
+  and that import would break the "imports without Home Assistant" rule.
+
 ### Added
+- `custom_components/fleetassistant/brand/{icon,logo}.png`, required by HACS validation.
+- CI now runs on every branch push, not only on `main` and pull requests.
 - **Licence decided: Apache-2.0** (ADR-0023, closes OQ-003). `LICENSE` is the
   canonical Apache-2.0 text, `NOTICE` names Home Assistant (Apache-2.0) and HAEO
   (MIT) and states the absence of affiliation, `pyproject.toml` declares

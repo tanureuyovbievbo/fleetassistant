@@ -1,3 +1,12 @@
+# NOTE - edit later, then delete this block (tracked as RL-33 in docs/verification/REVIEW_LATER.md).
+#
+# Two placeholders are still open in this project's licensing:
+#   1. the copyright holder named below is blank;
+#   2. LICENSE keeps the Apache appendix sample [yyyy] [name of copyright owner].
+#
+# This note lives here, not in LICENSE: GitHub's licence detector reads LICENSE
+# byte-for-byte, and a comment prefix made it report "no license" (HACS validation).
+# The licence text itself must never be edited.
 fleetassistant
 Copyright 2026 ____________________________  (placeholder: copyright holder to be named)
 

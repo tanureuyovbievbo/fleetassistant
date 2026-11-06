@@ -16,30 +16,36 @@ def _read(name: str) -> str:
     return (ROOT / name).read_text(encoding="utf-8")
 
 
-def _without_note(text: str) -> tuple[str, list[str]]:
-    """Split a leading '#' note block from the licence text it precedes."""
+def _note_block(text: str) -> list[str]:
+    """Return the leading '#' note block, if any."""
     lines = text.splitlines()
     note: list[str] = []
     while lines and lines[0].startswith("#"):
         note.append(lines.pop(0))
-    return chr(10).join(lines), note
+    return note
 
 
-def test_license_carries_a_removal_note_before_the_canonical_text():
-    """RL-33: the prefix is a reminder, and it must be visibly removable."""
-    _, note = _without_note(_read("LICENSE"))
-    joined = chr(10).join(note).lower()
+def test_the_edit_later_note_lives_in_notice_not_license():
+    """RL-33: the reminder must exist, and must not sit in front of the licence text.
 
-    assert note, "LICENSE lost its edit-later note"
+    GitHub's licence detector (and therefore HACS' licence check) reads LICENSE as a
+    whole file; a comment prefix made it report "no license". So LICENSE stays
+    canonical and NOTICE carries the reminder.
+    """
+    assert not _note_block(_read("LICENSE")), "LICENSE must start with the licence text"
+    joined = chr(10).join(_note_block(_read("NOTICE"))).lower()
+
     assert "rl-33" in joined
-    assert "must not be edited" in joined
+    assert "must never be edited" in joined or "must not be edited" in joined
     assert "copyright holder" in joined
 
 
 def test_license_is_the_apache_2_0_text():
-    licence, _ = _without_note(_read("LICENSE"))
+    licence = _read("LICENSE")
 
+    # the canonical file indents its title; only a comment prefix would break detection
     assert licence.lstrip().startswith("Apache License")
+    assert not licence.lstrip().startswith("#")
     assert "Version 2.0, January 2004" in licence
     assert "TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION" in licence
     assert "END OF TERMS AND CONDITIONS" in licence
@@ -68,8 +74,9 @@ def test_notice_makes_no_affiliation_claim():
 
 def test_notice_copyright_holder_is_an_explicit_placeholder():
     """Never invent a legal entity; an empty holder must look empty."""
-    first_lines = _read("NOTICE").splitlines()[:2]
-    holder = first_lines[1]
+    holder = next(
+        line for line in _read("NOTICE").splitlines() if line.lower().startswith("copyright")
+    )
 
     assert holder.lower().startswith("copyright 2026")
     assert "placeholder" in holder.lower()

@@ -2,6 +2,7 @@
   "domain": "fleetassistant",
   "name": "fleetassistant",
   "after_dependencies": ["haeo"],
+  "categories": ["energy.energy_prices", "energy.solar_batteries"],
   "codeowners": [],
   "config_flow": true,
   "dependencies": [],
