@@ -13,13 +13,15 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from ..const import CONF_PRICE_AUTHORITY
 from ..profile.schema import SCHEMA_VERSION
 from .overlay import TargetOverlay, apply_overlays, overlay_windows
-from .providers import RateProvider, provider_from_profile
+from .providers import ExportValueCurve, FlatRate, RateProvider, provider_from_profile
 from .series import Point, build_series, to_forecast
+from .sources import DEFAULT_AUTHORITY, MergedTariff, merge_tariffs, series_from_provider
 
 #: HAEO price input names. UNVERIFIED until the e04 spike (OQ-007).
 INPUT_NAMES = {"import": "price_import", "export": "price_export", "degradation": "battery_degradation_cost"}
@@ -160,3 +162,80 @@ def _degradation_inputs(profile: dict[str, Any]) -> list[dict[str, Any]]:
 
 def horizon_end(result: PriceInputs, horizon_hours: float) -> datetime:
     return result.horizon_start + timedelta(hours=horizon_hours)
+
+
+#: How far ahead we publish prices. HAEO's largest preset is 7 days; 48 h covers a
+#: 5-day default horizon with slack and is cheap to rebuild.
+PRICE_HORIZON_HOURS = 48.0
+PRICE_STEP_MINUTES = 60
+
+
+def price_authority(profile: dict[str, Any], options: dict[str, Any] | None = None) -> str:
+    """Authority for the price merge: options > profile > deployment default."""
+    explicit = str((options or {}).get(CONF_PRICE_AUTHORITY) or "").strip()
+    if explicit:
+        return explicit
+    configured = (profile.get("pricing") or {}).get("authority")
+    if configured:
+        return str(configured)
+    deployment = (profile.get("deployment") or {}).get("profile", "gateway_primary")
+    return DEFAULT_AUTHORITY.get(str(deployment), "user")
+
+
+def resolve_tariffs(
+    profile: dict[str, Any],
+    options: dict[str, Any] | None = None,
+    *,
+    now: datetime | None = None,
+    cloud: Any = None,
+    horizon_hours: float = PRICE_HORIZON_HOURS,
+    step_minutes: int = PRICE_STEP_MINUTES,
+) -> dict[str, MergedTariff]:
+    """Build the merged import/export prices we publish for HAEO.
+
+    ``cloud`` accepts a :class:`~.sources.SeriesResult` (a caller that already
+    fetched, e.g. the future cloud provider at RL-20). Without one, the user
+    schedule is the only source and an authority of ``cloud`` degrades visibly.
+    """
+    moment = now or datetime.now(UTC)
+    start = moment.replace(minute=0, second=0, microsecond=0)
+    end = start + timedelta(hours=horizon_hours)
+    site_id = str(profile["site"]["id"])
+    pricing = profile.get("pricing") or {}
+    authority = price_authority(profile, options)
+
+    user_import = series_from_provider(
+        provider_from_profile(pricing["provider"]),
+        start=start,
+        end=end,
+        step_minutes=step_minutes,
+        quality="entered",
+    )
+    tariffs = {
+        INPUT_NAMES["import"]: merge_tariffs(
+            site_id=site_id, cloud=cloud, user=user_import, authority=authority, now=moment
+        )
+    }
+
+    export_config = pricing.get("export")
+    if isinstance(export_config, dict) and "currency_per_kwh" in export_config:
+        export_provider: RateProvider = ExportValueCurve(
+            currency_per_kwh=float(export_config["currency_per_kwh"]),
+            hour_multipliers=tuple(export_config.get("hour_multipliers") or ()),
+        )
+        export_series = series_from_provider(
+            export_provider, start=start, end=end, step_minutes=step_minutes, quality="entered"
+        )
+    else:
+        export_series = series_from_provider(
+            FlatRate(0.0, name="no_export_value"),
+            start=start,
+            end=end,
+            step_minutes=step_minutes,
+            quality="fallback",
+            warnings=("no export value configured: exports are valued at 0.0 (add an export curve)",),
+        )
+    tariffs[INPUT_NAMES["export"]] = merge_tariffs(
+        site_id=site_id, cloud=None, user=export_series, authority=authority, now=moment
+    )
+    return tariffs

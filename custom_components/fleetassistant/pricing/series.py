@@ -6,8 +6,6 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from ..haeo_bridge import contracts
-
 #: HAEO reads forecast-style sensors whose ``forecast`` attribute lists points
 #: with a boundary time and a value. The boundary key is ``time`` at HAEO v0.5.0
 #: (source-verified, ``core/data/forecast_times.py``); what a *price* or *load*
@@ -16,16 +14,27 @@ from ..haeo_bridge import contracts
 FORECAST_FORMAT_VERIFIED = False
 
 
-def forecast_item(
-    ts: datetime, value: float, boundary_key: str = contracts.FORECAST_BOUNDARY_KEY
-) -> dict[str, str | float]:
+def _contracts():
+    """Import the HAEO contract lazily.
+
+    ``haeo_bridge.plan`` imports this package, so a module-level import here
+    would close an import cycle that only resolves by luck of import order.
+    """
+    from ..haeo_bridge import contracts
+
+    return contracts
+
+
+def forecast_item(ts: datetime, value: float, boundary_key: str | None = None) -> dict[str, str | float]:
     """Return one ``forecast`` attribute point.
 
     Home Assistant's own forecast convention names the boundary ``datetime``,
     while HAEO reads ``time``. The key is a parameter so a caller can publish to
     either consumer without a second code path.
     """
-    return {boundary_key: ts.astimezone(UTC).isoformat(), contracts.FORECAST_VALUE_KEY: float(value)}
+    contracts = _contracts()
+    key = boundary_key or contracts.FORECAST_BOUNDARY_KEY
+    return {key: ts.astimezone(UTC).isoformat(), contracts.FORECAST_VALUE_KEY: float(value)}
 
 
 @dataclass(frozen=True, order=True)
@@ -37,7 +46,7 @@ class Point:
         if self.ts.tzinfo is None:
             raise ValueError("series points must be timezone-aware")
 
-    def as_forecast_item(self, boundary_key: str = contracts.FORECAST_BOUNDARY_KEY) -> dict[str, str | float]:
+    def as_forecast_item(self, boundary_key: str | None = None) -> dict[str, str | float]:
         return forecast_item(self.ts, self.value, boundary_key)
 
 

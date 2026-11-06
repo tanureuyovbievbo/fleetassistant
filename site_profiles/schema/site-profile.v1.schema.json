@@ -249,6 +249,60 @@
         },
         "notes": {
           "type": "string"
+        },
+        "authority": {
+          "enum": [
+            "cloud",
+            "user",
+            "user_unless_stale"
+          ],
+          "description": "Which tariff source wins when both a cloud quote and a user schedule price a period (ADR-0019). Omitted means the deployment profile's default."
+        },
+        "cloud": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider"
+          ],
+          "properties": {
+            "provider": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{1,62}$"
+            },
+            "stale_after_minutes": {
+              "type": "integer",
+              "minimum": 5,
+              "maximum": 1440
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        },
+        "export": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "currency_per_kwh"
+          ],
+          "properties": {
+            "currency_per_kwh": {
+              "type": "number",
+              "minimum": -1.0,
+              "maximum": 10.0
+            },
+            "hour_multipliers": {
+              "type": "array",
+              "minItems": 24,
+              "maxItems": 24,
+              "items": {
+                "type": "number"
+              }
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
         }
       }
     },

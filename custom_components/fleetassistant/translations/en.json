@@ -29,13 +29,15 @@
           "relax_impossible_plans": "Relax impossible plans",
           "preset_days": "Planning horizon (days)",
           "apply_haeo_plan": "Write the plan to HAEO now (provisioning)",
-          "profile_json": "Site profile JSON (optional)"
+          "profile_json": "Site profile JSON (optional)",
+          "price_authority": "Price authority"
         },
         "data_description": {
           "relax_impossible_plans": "Tells HAEO to return an approximate plan instead of no plan when constraints cannot all be met. Fleet reliability prefers an approximate plan.",
           "preset_days": "Horizon length for systems that plan from a preset. A forecast sensor on a system overrides this.",
           "apply_haeo_plan": "When on, setup provisions the HAEO hub, elements and pricing from the compiled plan. Leave off until the HAEO payloads have been confirmed on a live instance.",
-          "profile_json": "Paste a full site profile to replace the stored one. Invalid profiles are rejected and the stored profile is kept."
+          "profile_json": "Paste a full site profile to replace the stored one. Invalid profiles are rejected and the stored profile is kept.",
+          "price_authority": "Which tariff wins when a cloud quote and your own schedule both price an hour. Leave empty to use the deployment profile's default (cloud-primary: cloud, gateway: user)."
         }
       }
     },

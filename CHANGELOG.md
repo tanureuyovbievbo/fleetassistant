@@ -19,6 +19,20 @@ All notable changes to this project are documented here. The format follows [Kee
   diagnostics now expose the last apply's operations and issues.
 
 ### Added
+- Published price sensors: one sensor per price input (`price_import`, `price_export`),
+  carrying the compiled series in a HAEO-shaped `forecast` attribute plus the
+  provenance of every period (ADR-0019).
+- Dual tariff sources: `pricing/sources.py` merges a user-entered schedule with a
+  cloud quote under a per-site authority (`cloud`, `user`, `user_unless_stale`),
+  marks lapsed quotes `stale`, prefers a fresh secondary, and records every
+  divergence with both values and the applied one.
+- `CloudTariffSource`: an injected fetcher, a TTL cache and a request counter, so a
+  vendor adapter (when one exists) cannot hide its quota from us (C-22).
+- Profile keys `pricing.authority`, `pricing.cloud.stale_after_minutes` and
+  `pricing.export.{currency_per_kwh,hour_multipliers}`, plus a `price_authority`
+  options-flow selector.
+
+### Added
 - Charger modelling: `ev_charger` compiles to HAEO's `deferrable_load`
   (`schedule.window_calendar`, `power.max_power`, `deficit_price`/`overage_price`),
   with `window_calendar` now required by the site-profile schema (ADR-0016). HAEO's

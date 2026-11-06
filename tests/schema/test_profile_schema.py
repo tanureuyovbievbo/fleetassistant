@@ -80,3 +80,34 @@ def test_fail_safe_value_must_lie_inside_limits() -> None:
     profile = deep_copy(example("solark_gateway_primary.yaml"))
     profile["controls"][0]["fail_safe_value"] = 999
     assert "range" in _codes(profile)
+
+
+def test_price_authority_must_be_a_known_value() -> None:
+    profile = deep_copy(example("tesla_cloud_primary.yaml"))
+    profile["pricing"]["authority"] = "cheapest"
+    assert "choice" in _codes(profile)
+
+
+def test_price_authority_accepts_every_documented_value() -> None:
+    for authority in ("cloud", "user", "user_unless_stale"):
+        profile = deep_copy(example("tesla_cloud_primary.yaml"))
+        profile["pricing"]["authority"] = authority
+        assert _codes(profile) == set(), authority
+
+
+def test_a_declared_cloud_source_needs_a_provider_id() -> None:
+    profile = deep_copy(example("tesla_cloud_primary.yaml"))
+    profile["pricing"]["cloud"] = {"provider": "Not A Slug"}
+    assert "slug" in _codes(profile)
+
+
+def test_export_multipliers_must_cover_all_24_hours() -> None:
+    profile = deep_copy(example("tesla_cloud_primary.yaml"))
+    profile["pricing"]["export"] = {"currency_per_kwh": 0.05, "hour_multipliers": [1.0] * 12}
+    assert "range" in _codes(profile)
+
+
+def test_an_export_curve_is_accepted() -> None:
+    profile = deep_copy(example("tesla_cloud_primary.yaml"))
+    profile["pricing"]["export"] = {"currency_per_kwh": 0.05, "hour_multipliers": [1.0] * 24}
+    assert _codes(profile) == set()

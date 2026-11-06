@@ -15,11 +15,13 @@ from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
     CONF_APPLY_HAEO_PLAN,
+    CONF_PRICE_AUTHORITY,
     DEFAULT_APPLY_HAEO_PLAN,
     DEFAULT_RELAX_IMPOSSIBLE_PLANS,
     DOMAIN,
     NAME,
 )
+from .pricing.sources import AUTHORITIES
 from .profile.schema import DEPLOYMENT_PROFILES, validate_profile
 from .site import default_profile
 
@@ -103,6 +105,7 @@ class FleetassistantOptionsFlow(OptionsFlow):
                         "relax_impossible_plans": bool(user_input["relax_impossible_plans"]),
                         "preset_days": int(user_input["preset_days"]),
                         CONF_APPLY_HAEO_PLAN: bool(user_input.get(CONF_APPLY_HAEO_PLAN, DEFAULT_APPLY_HAEO_PLAN)),
+                        CONF_PRICE_AUTHORITY: str(user_input.get(CONF_PRICE_AUTHORITY) or "").strip(),
                         "profile_json": str(user_input.get("profile_json") or ""),
                     },
                 )
@@ -122,6 +125,9 @@ class FleetassistantOptionsFlow(OptionsFlow):
                         CONF_APPLY_HAEO_PLAN,
                         default=current.get(CONF_APPLY_HAEO_PLAN, DEFAULT_APPLY_HAEO_PLAN),
                     ): bool,
+                    vol.Optional(
+                        CONF_PRICE_AUTHORITY, default=current.get(CONF_PRICE_AUTHORITY, "")
+                    ): vol.In(["", *AUTHORITIES]),
                     vol.Optional("profile_json", default=current.get("profile_json", "")): str,
                 }
             ),

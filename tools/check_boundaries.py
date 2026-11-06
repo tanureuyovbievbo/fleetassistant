@@ -11,7 +11,13 @@ import sys
 from pathlib import Path
 
 PACKAGE = Path("custom_components") / "fleetassistant"
-HA_MODULE_LEVEL_ALLOWED = {"__init__.py", "runtime.py", "config_flow.py", "diagnostics.py"}
+HA_MODULE_LEVEL_ALLOWED = {
+    "__init__.py",
+    "runtime.py",
+    "config_flow.py",
+    "diagnostics.py",
+    "sensor.py",  # entities are HA objects; the values they expose are computed in pricing/
+}
 
 HA_IMPORT = re.compile(r"^\s*(?:from|import)\s+homeassistant\b", re.MULTILINE)
 HAEO_IMPORT = re.compile(r"^\s*(?:from|import)\s+(?:custom_components\.haeo|\.\.haeo)\b", re.MULTILINE)

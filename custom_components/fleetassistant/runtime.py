@@ -21,6 +21,7 @@ from .haeo_bridge.flows import FlowHaeoDriver
 from .haeo_bridge.ha_port import HomeAssistantFlowPort
 from .haeo_bridge.plan import compile_plan
 from .haeo_bridge.prevalidate import prevalidate
+from .pricing.compiler import resolve_tariffs
 from .profile.schema import Issue, validate_profile
 from .site import SiteRuntime
 
@@ -78,10 +79,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
 
+    runtime.tariffs = resolve_tariffs(profile, dict(entry.options))
+    runtime.audit.append(
+        "price.resolve",
+        {
+            name: {
+                "authority": tariff.authority,
+                "provenance": tariff.provenance,
+                "degraded_periods": len(tariff.stale),
+                "missing_periods": len(tariff.missing),
+            }
+            for name, tariff in runtime.tariffs.items()
+        },
+    )
+
     # A successful setup can still carry blocking plan issues (for example an
     # unverified HAEO type map): the site exists, but nothing is applied.
     if any(issue.is_error for issue in plan_issues):
         runtime.last_apply_status = "blocked"
+
+    if runtime.tariffs:
+        await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
 
     if entry.options.get(CONF_APPLY_HAEO_PLAN):
         await _apply_profile(hass, entry, runtime)
@@ -136,8 +154,9 @@ async def _apply_profile(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteR
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    unloaded = await hass.config_entries.async_unload_platforms(entry, ["sensor"])
     hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
-    return True
+    return unloaded
 
 
 def _raise_issues(hass: HomeAssistant, entry: ConfigEntry, issues: list[Issue], *, prefix: str) -> None:

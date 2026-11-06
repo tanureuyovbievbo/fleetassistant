@@ -21,6 +21,9 @@ class SiteRuntime:
     issues: list[Issue] = field(default_factory=list)
     last_apply_status: str = "not_applied"
     last_apply_report: Any = None
+    #: Merged tariffs keyed by price input name (``price_import``/``price_export``),
+    #: published as forecast sensors for HAEO to read (ADR-0019).
+    tariffs: dict[str, Any] = field(default_factory=dict)
 
     @property
     def site_id(self) -> str:
@@ -43,6 +46,9 @@ class SiteRuntime:
             "last_apply_issues": [] if self.last_apply_report is None else [
                 {"code": i.code, "path": i.path, "message": i.message} for i in self.last_apply_report.issues
             ],
+            "price_authority": {name: tariff.authority for name, tariff in self.tariffs.items()},
+            "price_provenance": {name: tariff.provenance for name, tariff in self.tariffs.items()},
+            "price_warnings": [w for tariff in self.tariffs.values() for w in tariff.warnings],
             "audit_records": len(self.audit),
             "audit_chain_valid": self.audit.verify(),
             "issues": [

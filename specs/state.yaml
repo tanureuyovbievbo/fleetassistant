@@ -6,19 +6,31 @@ domain: fleetassistant
 
 phase: build                     # discover | elaborate | plan | build | verify | release
 current:
-  epic: e04-haeo-bridge
-  deliverable: D04
+  epic: e05-price-target-model
+  deliverable: D05
   status: in-progress
-  step: spike                    # context-check | draft | verify | review | fix | gate | accepted
+  step: fix                    # context-check | draft | verify | review | fix | gate | accepted
 
 next_action: >
-  OQ-021 is closed from source: efficiency is a 0..1 ratio that the segment multiplies,
-  so HAEO's own 95.0 default is a trap; the bridge always writes efficiency and the
-  profile validator range-checks it (ADR-0018, F-057..F-060). Next: OQ-022 (who
-  supplies a charger's run-window calendar), then the live run that flips
-  HAEO_SURFACE_LIVE_VERIFIED.
+  Prices are published and merged: one sensor per price input (HAEO-shaped forecast
+  attribute plus provenance) fed by a user schedule and, when one exists, a cloud
+  quote under an explicit per-site authority with staleness fallback (ADR-0019). The
+  cloud fetcher itself does not exist (RL-20) and divergences raise no repair yet
+  (RL-22). Next concrete step: the adapter for one vendor tariff feed with its quota
+  math recorded first (C-22), or OQ-022 (who supplies a charger's run-window
+  calendar) — whichever the next session can verify against a primary source.
 
 implemented:
+  - date: 2026-11-06
+    summary: >
+      Dual tariff sources merged under an explicit authority (cloud | user |
+      user_unless_stale) with staleness fallback, divergence capture, and provenance in
+      attributes rather than in the value; published price sensors now exist with the
+      object ids the compiled plan references, closing the gap where a plan pointed at
+      entities nobody published (ADR-0019). A latent import cycle between pricing.series
+      and haeo_bridge was removed. 164 tests pass. Open: RL-20 (no cloud fetcher),
+      RL-22 (divergences raise no repair).
+    entry: docs/updates/2026-11-06-tariff-sources.md
   - date: 2026-11-06
     summary: >
       OQ-021 closed: efficiency is a 0..1 ratio (segment multiplies, unit doc says

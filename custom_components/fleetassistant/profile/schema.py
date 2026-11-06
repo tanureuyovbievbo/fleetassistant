@@ -507,8 +507,39 @@ def _validate_controls(
 def _validate_pricing(c: _Collector, pricing: Any) -> None:
     if pricing is None:
         return
-    if not c.mapping("$.pricing", pricing, ("provider",), ("notes",)):
+    if not c.mapping("$.pricing", pricing, ("provider",), ("notes", "authority", "cloud", "export")):
         return
+    if "authority" in pricing:
+        # ADR-0019: which source wins when a cloud quote and a user schedule both
+        # exist. Omitted means "the deployment profile's default".
+        c.choice("$.pricing.authority", pricing.get("authority"), ("cloud", "user", "user_unless_stale"))
+    cloud = pricing.get("cloud")
+    if cloud is not None and c.mapping("$.pricing.cloud", cloud, ("provider",), ("stale_after_minutes", "notes")):
+        c.slug("$.pricing.cloud.provider", cloud.get("provider"))
+        if "stale_after_minutes" in cloud:
+            c.number(
+                "$.pricing.cloud.stale_after_minutes",
+                cloud["stale_after_minutes"],
+                minimum=5,
+                maximum=1440,
+            )
+    export = pricing.get("export")
+    if export is not None and c.mapping(
+        "$.pricing.export", export, ("currency_per_kwh",), ("hour_multipliers", "notes")
+    ):
+        c.number("$.pricing.export.currency_per_kwh", export.get("currency_per_kwh"), minimum=-1.0, maximum=10.0)
+        multipliers = export.get("hour_multipliers")
+        if multipliers is not None:
+            if not isinstance(multipliers, list) or len(multipliers) != 24:
+                c.error("range", "$.pricing.export.hour_multipliers", "must be 24 hourly multipliers")
+            else:
+                for index, value in enumerate(multipliers):
+                    c.number(
+                        f"$.pricing.export.hour_multipliers[{index}]",
+                        value,
+                        minimum=0.0,
+                        maximum=10.0,
+                    )
     provider = pricing.get("provider")
     if not c.mapping("$.pricing.provider", provider, ("type",), ("currency_per_kwh", "blocks", "fallback", "series")):
         return

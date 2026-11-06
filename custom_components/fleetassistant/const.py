@@ -29,5 +29,12 @@ DEFAULT_RELAX_IMPOSSIBLE_PLANS = True
 CONF_APPLY_HAEO_PLAN = "apply_haeo_plan"
 DEFAULT_APPLY_HAEO_PLAN = False
 
+#: Which tariff source wins when a site has both a cloud quote and a user
+#: schedule (ADR-0019). Empty means "the deployment profile's default".
+CONF_PRICE_AUTHORITY = "price_authority"
+
+#: Price inputs we publish as forecast sensors; the plan references these ids.
+PRICE_INPUTS = ("price_import", "price_export")
+
 #: Domain collision guard (C-03).
 HAEO_DOMAIN = "haeo"
