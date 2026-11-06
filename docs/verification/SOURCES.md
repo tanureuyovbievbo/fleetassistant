@@ -42,6 +42,9 @@ These are candidate primary sources. Do not cite them until they are fetched and
 | HA Supervisor license | https://github.com/home-assistant/supervisor/blob/main/LICENSE | D02 |
 | CPUC / CEC / CAISO / IOU program pages | (per D10 item) | D10 |
 | OpenADR Alliance certification | https://www.openadr.org/ | D10 |
+| **Device control coverage** (OQ-023) — per brand, the integration's writable platforms | `https://github.com/home-assistant/core/tree/2026.1.1/homeassistant/components/<brand>/` (`number.py`, `select.py`, `switch.py`, `climate.py`) plus the integration's `manifest.json` for `iot_class` | D06 (device packs), D08 (OTA matrix) |
+| **Device limits** (safe min/max per capability) | the brand's own manual or app documentation, cited per pack | D06 |
+| **Vendor ToS / API quota** | the vendor's developer terms page, cited per cloud-backed pack | D06, C-24 |
 
 | S-017 | "Add a config flow to your integration" | Home Assistant Developer Docs | https://developers.home-assistant.io/docs/config_entries_config_flow_handler/ | 2026-11-05 | OQ-016 fetch | Config-flow step shape (`flow_id`, `step_id`, `type`, `data_schema`), `async_show_form`/`async_create_entry`; options flow attached with `async_get_options_flow`. |
 | S-018 | "Config subentries" | Home Assistant Contributor Docs | https://contributors.home-assistant.io/core/integrations/subentries/ | 2026-11-05 | OQ-016 fetch | Subentry flows are started with `hass.config_entries.subentries.async_init((entry_id, subentry_type), context=SubentryFlowContext(source=...))`, answered with `async_configure`, and only support the `user`/`reconfigure` steps; CRUD via `async_add_subentry` / `async_update_subentry` / `async_remove_subentry`. |

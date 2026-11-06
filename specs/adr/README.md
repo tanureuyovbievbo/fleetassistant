@@ -27,3 +27,4 @@ Next ADRs expected: license decision (D02, OQ-003), per-element field map (D04, 
 | [ADR-0019](ADR-0019-tariff-authority-and-staleness.md) | Two tariff sources, one explicit authority, provenance off the value | accepted | 2026-11-06 |
 | [ADR-0020](ADR-0020-references-and-adapter-glue.md) | Entities are checked at setup, and device I/O never leaves the adapter layer | accepted | 2026-11-06 |
 | [ADR-0021](ADR-0021-dispatch-loop-and-fail-safe.md) | Fresh plans only, fail safe once per outage, and the loop is the only caller of the executor | accepted | 2026-11-06 |
+| [ADR-0022](ADR-0022-device-packs-over-vendor-clients.md) | HA integrations are the device transport; brands enter as data-only device packs | proposed | 2026-11-06 |

@@ -28,3 +28,19 @@ Status values: `open` · `in-progress` · `resolved` · `wont-fix` · `needs-hum
 | OQ-020 | Where the priced battery-degradation term enters HAEO: a `policy` rule, the battery's surfaced `discharge_cost`, or both. **Resolved (source)**: a `policy` rule `{source: [battery], target: ["*"], price: degradation}` lands on the battery's own discharge edges (F-056, ADR-0017). | C-14 requires a priced degradation term and HAEO has no degradation field (F-043/F-044). | D05 | architect + source-verifier | Still open: whether charging throughput needs a second rule (`*` → battery) and how the term compares with `charge_limit_cost`. | resolved (source) |
 | OQ-021 | Units of HAEO's efficiency fields: the schema default is `95.0` and the battery adapter passes it straight into a segment, while every other ratio in the same element is 0..1. | If efficiency is a percentage, writing 0.95 from a profile would model a 0.95 % round trip; if it is a ratio, the 95.0 default is wrong. Either way a profile-to-HAEO conversion is needed. | D04, D05 | source-verifier | Read `core/model/elements/segments` efficiency handling, then confirm on a live instance. | open |
 | OQ-022 | Who supplies the run-window calendar a deferrable load requires: the installer, an HA helper calendar, or a calendar our integration provides. | Without a calendar, an EV charger profile cannot be compiled (F-050); creating entities in someone's HA is a product decision, not a code detail. | D04, D06 | human | Decide the default for gateway and cloud profiles, then record it as an ADR. | open |
+
+## OQ-023 — Which HA integration exposes which writable entity, per brand?
+
+- **Question:** for each candidate brand (Sol-Ark, EG4, Sigenergy, Solis, Deye,
+  Growatt, GoodWe, Hoymiles, Tesla, SolarEdge, Enphase, Wallbox, Easee, ecobee,
+  Sensibo), which core or HACS integration provides a *writable* entity for each
+  capability we need (export limit, battery target, charger amps, thermostat
+  setpoint, shed), on which models, at HA 2026.1.1 — and what does that integration's
+  `iot_class` and licence say about authority and redistribution?
+- **Status:** open. Not assumed from "the brand is supported": many integrations are
+  sensor-only, and a sensor proves observation, never control.
+- **Blocks:** every `device_packs/<brand>/pack.json` staying `verified: false`
+  (ADR-0022), and any claim that a brand is "supported".
+- **Next:** pick one brand, read the integration's source at the pinned HA tag for its
+  `number`/`select`/`switch`/`climate` platforms, and record the entity domain, the
+  value range, and the doc URL in `SOURCES.md`.
