@@ -41,7 +41,7 @@ def test_mapped_types_exist_in_haeo() -> None:
 
 
 def test_unresolved_kinds_are_exactly_the_ones_without_an_element() -> None:
-    assert {"meter", "thermostat", "relay", "ev_charger"} == contracts.UNRESOLVED_KINDS
+    assert {"meter", "thermostat", "relay"} == contracts.UNRESOLVED_KINDS
     for kind in contracts.UNRESOLVED_KINDS:
         assert contracts.CANDIDATE_KIND_TO_TYPE[kind] is None
 

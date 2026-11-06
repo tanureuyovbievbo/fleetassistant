@@ -89,3 +89,4 @@ Canonical instructions for any AI coding agent working in this repository. This 
 | 2026-11-05 | HAEO v0.5.0 surface spike | `custom_components/fleetassistant/haeo_bridge/` | ADR-0012, ADR-0013 |
 | 2026-11-06 | HAEO flow driver + HA port | `custom_components/fleetassistant/haeo_bridge/` | ADR-0014 |
 | 2026-11-06 | HAEO element field table + topology as connection fields | `custom_components/fleetassistant/haeo_bridge/fields.py`, `plan.py` | ADR-0015 |
+| 2026-11-06 | Charger carrier, degradation policy, ratio conversion | `custom_components/fleetassistant/haeo_bridge/{fields,plan,prevalidate}.py` | ADR-0016, ADR-0017 |

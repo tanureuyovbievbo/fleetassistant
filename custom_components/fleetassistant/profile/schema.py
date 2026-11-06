@@ -309,7 +309,33 @@ def _validate_element(c: _Collector, path: str, element: Any) -> tuple[str | Non
         return None, None
     kind = c.choice(f"{path}.kind", element.get("kind"), ELEMENT_KINDS)
     element_id = c.slug(f"{path}.id", element.get("id"))
-    base_optional = {"name", "vendor", "model", "notes", "entity_id", "forecast_entity"}
+    #: Keys an element may carry that HAEO stores as element fields. They are
+    #: listed in ``haeo_bridge/fields.py`` as the profile side of each FieldSpec;
+    #: a key HAEO has no field for stays here only if the site needs it
+    #: (``degradation_cost``), and the bridge reports it instead of writing it.
+    base_optional = {
+        "name",
+        "vendor",
+        "model",
+        "notes",
+        "entity_id",
+        "forecast_entity",
+        "window_calendar",
+        "initial_soc_pct",
+        "max_charge_kw",
+        "max_discharge_kw",
+        "import_price_entity",
+        "export_price_entity",
+        "curtailment_allowed",
+        "salvage_value",
+        "charge_limit_cost",
+        "charge_efficiency_pct",
+        "discharge_efficiency_pct",
+        "deficit_price",
+        "overage_price",
+        "connected_entity",
+        "current_soc_entity",
+    }
     required = ["id", "kind"]
     if kind == "battery":
         required += [
@@ -327,7 +353,9 @@ def _validate_element(c: _Collector, path: str, element: Any) -> tuple[str | Non
     elif kind == "meter":
         required += ["topology"]
     elif kind == "ev_charger":
-        required += ["max_amps", "phases"]
+        # A charger is a deferrable load in HAEO: it needs the run-window
+        # calendar that says when charging may happen (ADR-0016).
+        required += ["max_amps", "phases", "window_calendar"]
     elif kind == "thermostat":
         required += ["min_setpoint_f", "max_setpoint_f"]
     elif kind == "relay":

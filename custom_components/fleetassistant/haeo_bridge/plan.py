@@ -18,7 +18,7 @@ element fields.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -137,6 +137,9 @@ class ElementPlan:
     #: Profile keys HAEO has no field for but the site still needs (degradation
     #: cost, vendor identity). Kept for checks and diagnostics, never written.
     profile_extras: dict[str, Any] = field(default_factory=dict)
+    #: Payload keys stored next to the sections rather than inside one (a
+    #: ``policy`` element keeps its ``rules`` list here).
+    flat: dict[str, Any] = field(default_factory=dict)
 
     @property
     def identity(self) -> str:
@@ -147,7 +150,7 @@ class ElementPlan:
         """Element data as HAEO stores it (requires a resolved ``haeo_type``)."""
         if self.haeo_type is None:
             raise ValueError(f"element {self.name!r} has no HAEO type (OQ-002)")
-        return fields.element_payload(self.name, self.haeo_type, self.sections, self.connection)
+        return fields.element_payload(self.name, self.haeo_type, self.sections, self.connection, self.flat)
 
 
 @dataclass(frozen=True)
@@ -363,6 +366,7 @@ def compile_plan(
                     },
                 )
             )
+        elements.extend(_degradation_policies(elements, system_id))
         for connection in system.get("connections", []):
             connections.append(
                 ConnectionPlan(
@@ -382,6 +386,48 @@ def compile_plan(
         connections=tuple(connections),
         type_map=tm,
     )
+
+
+def _degradation_policies(elements: Sequence[ElementPlan], system_id: str) -> list[ElementPlan]:
+    """Price each battery's discharge wear as a ``policy`` rule (ADR-0017).
+
+    HAEO's battery has no degradation field. Its policy compiler places a rule's
+    price on the sink-side minimum cut of the flow from ``source`` to ``target``;
+    for a single source with a wildcard target that cut collapses to the source's
+    own outbound edges — i.e. exactly the battery's discharge (F-056). Worse
+    numbers make the optimizer prefer other sources.
+    """
+    policies: list[ElementPlan] = []
+    for element in elements:
+        if element.system_id != system_id or element.haeo_type != "battery":
+            continue
+        cost = (element.profile_extras.get("degradation_cost") or {}).get("currency_per_kwh")
+        if not cost or float(cost) <= 0:
+            continue
+        policies.append(
+            ElementPlan(
+                system_id=system_id,
+                name=f"{element.name}_degradation",
+                kind="policy",
+                haeo_type=contracts.POLICY_TYPE,
+                flat={
+                    contracts.POLICY_RULES_FIELD: [
+                        {
+                            "name": f"{element.name} discharge wear",
+                            "enabled": True,
+                            "source": [element.name],
+                            "target": [contracts.POLICY_WILDCARD],
+                            "price": fields.tag_value("constant", float(cost)),
+                        }
+                    ]
+                },
+                profile_extras={
+                    "degradation_cost": element.profile_extras["degradation_cost"],
+                    "priced_element": element.name,
+                },
+            )
+        )
+    return policies
 
 
 def _bus_element(system_id: str) -> ElementPlan:

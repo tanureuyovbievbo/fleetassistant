@@ -17,7 +17,9 @@
 >
 > **Flow driver (implemented):** `haeo_bridge/flows.py` answers HAEO's config flow (hub), options flow (hub settings) and subentry flows (elements) through a narrow `FlowPort`; `haeo_bridge/ha_port.py` is the only module touching `hass`. A refused write stops the apply as `partial` with a repair issue. Rule: ADR-0014.
 >
-> **Still open:** the live run (accept HAEO's payloads — OQ-017), how our `_bus` junction relates to HAEO's own switchboard junction and whether pruning may ever be enabled (OQ-018), which element carries EV-charger energy (OQ-019), where the priced degradation term enters HAEO (OQ-020), OQ-011 (policy pricing/shadow prices), OQ-007 (price/load sensor formats).
+> **Still open:** the live run (accept HAEO's payloads — OQ-017), how our `_bus` junction relates to HAEO's own switchboard junction and whether pruning may ever be enabled (OQ-018), who supplies the run-window calendar a charger needs (OQ-022), HAEO's efficiency units (OQ-021), OQ-011 (shadow prices), OQ-007 (price/load sensor formats).
+>
+> **Resolved 2026-11-06:** a charger is a `deferrable_load` (ADR-0016, OQ-019) and battery degradation is a `policy` rule (ADR-0017, OQ-020); profile percentages are written as 0..1 ratios (F-052).
 >
 > **Field table (2026-11-05):** element payloads are built from `haeo_bridge/fields.py`, which records each section and key against a primary source (S-021..S-028). Topology is a per-element `connection` field pointing at a synthesised `<system>_bus` junction (ADR-0015); the bridge never prunes elements it did not create.
 >

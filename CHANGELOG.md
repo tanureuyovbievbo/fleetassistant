@@ -5,6 +5,25 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Charger modelling: `ev_charger` compiles to HAEO's `deferrable_load`
+  (`schedule.window_calendar`, `power.max_power`, `deficit_price`/`overage_price`),
+  with `window_calendar` now required by the site-profile schema (ADR-0016). HAEO's
+  `ev` element, which models a vehicle, stays unused and recorded.
+- Degradation pricing: a battery's `degradation_cost` compiles into a `policy`
+  element whose rule prices the battery's discharge (`{source: [battery], target:
+  ["*"]}`), because HAEO places a rule's price on the source's outbound edges for a
+  single source and a wildcard destination (ADR-0017, F-056).
+- Ratio conversion: HAEO's `*_percentage` fields are 0..1 ratios, so profile
+  percentages leave as `value / 100` (F-052); the previous payload would have meant
+  2000 % for a 20 % floor.
+- `policy` payload support (`flat` keys on `ElementPlan`, `contracts.POLICY_*`) and
+  policy pre-validation: `policy_rules_missing`, `policy_price_invalid`,
+  `policy_connected`, plus rule endpoints checked for dangling names.
+- Site-profile schema: element keys for the HAEO fields we now fill
+  (`window_calendar`, `initial_soc_pct`, `import_price_entity`, `export_price_entity`,
+  `deficit_price`, …).
+
+### Added
 - HAEO element field table (`haeo_bridge/fields.py`) recorded from the pinned v0.5.0
   schemas: tagged `entity`/`constant` values, section names (`power_limits`,
   `pricing`, `forecast`, `curtailment`, `storage`, `limits`, `efficiency`,
@@ -47,7 +66,7 @@ All notable changes to this project are documented here. The format follows [Kee
   - `adapters/` — capability descriptors (limits, rate limit, hysteresis, consent, backing, authority, fail-safe), safety pipeline, and API-backed plus Modbus-backed stub adapters behind one contract.
   - `executor.py`, `audit.py`, `ledger.py`, `telemetry.py` — plan execution with staleness and fail-safe, SHA-256 hash-chained audit log, commitments ledger that rejects over-commitment, telemetry envelope v1 with dedupe and firm/estimated separation.
   - Home Assistant glue: `config_flow.py` (config + options), `runtime.py` (repairs on validation failure), `manifest.json` with zero pip requirements, `hacs.json`.
-- Tests: 127 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, element field table and connectivity, flow driver against a fake port, pricing, adapters, executor, ledger, telemetry, boundary probes).
+- Tests: 130 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, element field table and connectivity, flow driver against a fake port, pricing, adapters, executor, ledger, telemetry, boundary probes).
 - CI: `ci.yml` (ruff, boundary probes, pytest, hassfest, HACS validation, manifest pin check), `release.yml` (zip + release), `haeo-contract.yml` (manual live-HAEO contract run).
 
 ### Added

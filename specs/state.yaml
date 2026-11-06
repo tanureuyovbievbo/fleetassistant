@@ -12,16 +12,22 @@ current:
   step: spike                    # context-check | draft | verify | review | fix | gate | accepted
 
 next_action: >
-  The HAEO field table is now read from source (OQ-017 source half; FACTS F-040..F-049,
-  haeo_bridge/fields.py) and topology renders into per-element connection fields
-  (ADR-0015). Two things still stop a real apply: a live instance accepting those
-  payloads (OQ-017 live half) and the relation between our <system>_bus junction and
-  HAEO's own switchboard junction (OQ-018). Next concrete steps that need no live
-  instance: decide the EV-charger carrier (OQ-019) and where the priced degradation term
-  enters HAEO (OQ-020), then wire runtime.py to call the driver behind a feature flag so
-  the first live run has a single switch to flip.
+  OQ-019 and OQ-020 are resolved from source (ADR-0016, ADR-0017): a charger is a
+  deferrable load, degradation is a policy rule, and profile percentages are written
+  as 0..1 ratios. What remains before a live apply: OQ-021 (efficiency units),
+  OQ-022 (who supplies the charger's run-window calendar), the meter/thermostat/relay
+  carriers, then the live run. Next concrete step: wire runtime.py to call the driver
+  behind a feature flag so the first live apply has one switch to flip.
+
 
 implemented:
+  - date: 2026-11-06
+    summary: >
+      Charger compiles to deferrable_load (ADR-0016); battery degradation compiles to a
+      policy rule on the battery's discharge (ADR-0017); HAEO percentage fields are
+      written as 0..1 ratios after F-052 exposed a 100x unit error. 130 tests pass.
+      Evidence: SOURCES S-029..S-032, FACTS F-050..F-056, OQ-021/OQ-022 opened.
+    entry: docs/updates/2026-11-06-charger-and-degradation.md
   - date: 2026-11-06
     summary: >
       HAEO element field table from the pinned v0.5.0 source (tagged values, section
@@ -61,6 +67,22 @@ human_decisions_pending:
     needed_by: e04 acceptance
 
 decisions:
+  - id: ADR-0017
+    date: 2026-11-06
+    status: accepted
+    summary: >
+      Battery degradation_cost becomes a policy element with one rule pricing the
+      battery's discharge, because HAEO places a rule's price on the source's outbound
+      edges for a single source and a wildcard destination. Rejected: charge_limit_cost,
+      salvage_value, folding the term into the import price, leaving it unwritten.
+  - id: ADR-0016
+    date: 2026-11-06
+    status: accepted
+    summary: >
+      A controllable charger is HAEO's deferrable_load (window calendar + power cap),
+      not its ev element, which models a vehicle. Charger control stays an adapter
+      capability; the profile requires window_calendar. Rejected: ev with invented
+      vehicle data, load, buffer, leaving the kind unmapped.
   - id: ADR-0015
     date: 2026-11-05
     status: accepted

@@ -137,16 +137,21 @@ FORECAST_MIN_BOUNDARIES: Final = 2
 #: HAEO element type per profile element kind, where the correspondence is
 #: unambiguous from HAEO's own element list.
 #:
+#: ``ev_charger`` maps to ``deferrable_load``: HAEO's ``ev`` models a *vehicle*
+#: (capacity, energy per distance, current SOC, connected flag) which a charger
+#: profile does not have, while a deferrable load asks only for a run-window
+#: calendar and a power cap (ADR-0016).
+#:
 #: ``meter``, ``thermostat`` and ``relay`` map to ``None`` on purpose: HAEO has
-#: no element with that name, and choosing a substitute (``junction``,
-#: ``deferrable_load``, ...) is a modelling decision, not a naming lookup. Those
-#: kinds block an apply until the decision is recorded (OQ-002).
+#: no element with that name, and choosing a substitute is a modelling decision,
+#: not a naming lookup. Those kinds block an apply until the decision is
+#: recorded (OQ-002, OQ-021).
 CANDIDATE_KIND_TO_TYPE: Final[dict[str, str | None]] = {
     "grid": "grid",
     "solar": "solar",
     "battery": "battery",
     "load": "load",
-    "ev_charger": None,
+    "ev_charger": "deferrable_load",
     "meter": None,
     "thermostat": None,
     "relay": None,
@@ -251,6 +256,10 @@ __all__ = [
     "INPUT_FIELD_NAMES_UNRESOLVED",
     "INTEGRATION_TYPE_HUB",
     "NON_ELEMENT_SUBENTRY_TYPES",
+    "POLICY_PRICE_UNIT",
+    "POLICY_RULES_FIELD",
+    "POLICY_TYPE",
+    "POLICY_WILDCARD",
     "UNRESOLVED_KINDS",
     "VALUE_TYPE_CONSTANT",
     "VALUE_TYPE_ENTITY",
@@ -259,3 +268,14 @@ __all__ = [
     "is_known_element_type",
     "preset_days",
 ]
+
+# --- policy elements (``core/schema/elements/policy.py``, ``core/adapters/policy_compilation.py``)
+
+#: Element type whose rules compile into ``PolicyPricing`` model elements.
+POLICY_TYPE = "policy"
+#: Policy payload key holding the rule list (plain list, not a section).
+POLICY_RULES_FIELD = "rules"
+#: A rule names elements, or this wildcard for "every capable element".
+POLICY_WILDCARD = "*"
+#: Rule price unit: currency per kWh of flow crossing the rule's cut.
+POLICY_PRICE_UNIT = "currency/kWh"

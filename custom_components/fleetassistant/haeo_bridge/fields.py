@@ -23,12 +23,13 @@ Nothing here imports Home Assistant.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from . import contracts
 
-ValueKind = Literal["entity", "constant", "none"]
+ValueKind = Literal["entity", "constant", "none", "ratio"]
 
 SOURCE_ELEMENTS = "haeo@0.5.0 core/schema/elements/"
 SOURCE_SECTIONS = "haeo@0.5.0 core/schema/sections/"
@@ -45,6 +46,8 @@ SECTION_CURTAILMENT = "curtailment"
 SECTION_VEHICLE = "vehicle"
 SECTION_CHARGING = "charging"
 SECTION_PUBLIC_CHARGING = "public_charging"
+SECTION_SCHEDULE = "schedule"
+SECTION_POWER = "power"
 
 #: Field name HAEO requires on every connected element (``sections/common.py``).
 CONNECTION_FIELD = "connection"
@@ -106,9 +109,9 @@ GRID_FIELDS = (
 
 BATTERY_FIELDS = (
     _f(SECTION_STORAGE, "capacity", "constant", "capacity_kwh", required=True, unit="kWh", source=SOURCE_ELEMENTS + "battery.py"),
-    _f(SECTION_STORAGE, "initial_charge_percentage", "constant", "initial_soc_pct", unit="%", source=SOURCE_ELEMENTS + "battery.py"),
-    _f(SECTION_LIMITS, "min_charge_percentage", "constant", "min_soc_pct", unit="%", source=SOURCE_ELEMENTS + "battery.py"),
-    _f(SECTION_LIMITS, "max_charge_percentage", "constant", "max_soc_pct", unit="%", source=SOURCE_ELEMENTS + "battery.py"),
+    _f(SECTION_STORAGE, "initial_charge_percentage", "ratio", "initial_soc_pct", unit="%", source=SOURCE_ELEMENTS + "battery.py"),
+    _f(SECTION_LIMITS, "min_charge_percentage", "ratio", "min_soc_pct", unit="%", source=SOURCE_ELEMENTS + "battery.py"),
+    _f(SECTION_LIMITS, "max_charge_percentage", "ratio", "max_soc_pct", unit="%", source=SOURCE_ELEMENTS + "battery.py"),
     _f(SECTION_POWER_LIMITS, "max_power_target_source", "constant", "max_charge_kw", unit="kW", source=SOURCE_ELEMENTS + "battery.py"),
     _f(SECTION_POWER_LIMITS, "max_power_source_target", "constant", "max_discharge_kw", unit="kW", source=SOURCE_ELEMENTS + "battery.py"),
     _f(SECTION_EFFICIENCY, "efficiency_source_target", "constant", "charge_efficiency_pct", default=95.0, unit="%", source=SOURCE_SECTIONS + "efficiency.py"),
@@ -143,6 +146,20 @@ EV_FIELDS = (
     _f(SECTION_ADVANCED, "charge_limit_cost", "constant", "charge_limit_cost", required=True, default=100.0, unit="currency/kWh", source=SOURCE_ELEMENTS + "ev.py"),
 )
 
+#: HAEO's ``ev`` models a vehicle, so no profile kind maps to it (ADR-0016).
+#: Kept as a recorded table for the day a gateway profile carries vehicle state.
+EV_VEHICLE_FIELDS = EV_FIELDS
+
+#: A controllable charger is a deferrable load: HAEO requires a run-window
+#: calendar and pays a deficit/overage price for energy delivered outside the
+#: window's requirement (``core/schema/elements/deferrable_load.py``).
+DEFERRABLE_LOAD_FIELDS = (
+    _f(SECTION_SCHEDULE, "window_calendar", "entity", "window_calendar", required=True, unit="calendar", source=SOURCE_ELEMENTS + "deferrable_load.py"),
+    _f(SECTION_POWER, "max_power", "constant", "max_charge_kw", unit="kW", source=SOURCE_ELEMENTS + "deferrable_load.py"),
+    _f(SECTION_PRICING, "deficit_price", "constant", "deficit_price", default=10.0, unit="currency/kWh", source=SOURCE_ELEMENTS + "deferrable_load.py"),
+    _f(SECTION_PRICING, "overage_price", "constant", "overage_price", default=0.0, unit="currency/kWh", source=SOURCE_ELEMENTS + "deferrable_load.py"),
+)
+
 #: Per HAEO element type: the fields we fill (source-verified names only).
 #: Keyed by HAEO type, not profile kind: the sections belong to the element, and
 #: a kind that maps to ``junction`` (or to nothing) carries no fields at all.
@@ -151,7 +168,7 @@ ELEMENT_FIELDS: dict[str, tuple[FieldSpec, ...]] = {
     "battery": BATTERY_FIELDS,
     "load": LOAD_FIELDS,
     "solar": SOLAR_FIELDS,
-    "ev": EV_FIELDS,
+    "deferrable_load": DEFERRABLE_LOAD_FIELDS,
 }
 
 #: Profile keys that describe the site, not the element. They must never reach
@@ -187,6 +204,11 @@ def tag_value(kind: ValueKind, value: Any) -> dict[str, Any]:
         return {"type": "entity", "value": list(value)}
     if kind == "none":
         return {"type": "none", "value": None}
+    if kind == "ratio":
+        # HAEO's `*_percentage` fields are 0..1 ratios: the battery adapter
+        # multiplies them by capacity directly. A 20 in a profile means 20 %, so
+        # it must reach HAEO as 0.2 (F-053) — sending 20 would mean 2000 %.
+        return {"type": "constant", "value": float(value) / 100.0}
     return {"type": "constant", "value": value}
 
 
@@ -233,8 +255,18 @@ def compile_element_fields(element: dict[str, Any], haeo_type: str | None) -> Co
     return CompiledFields(sections=sections, missing=tuple(missing), ignored=ignored)
 
 
-def element_payload(name: str, haeo_type: str, sections: dict[str, dict[str, Any]], connection: str | None) -> dict[str, Any]:
-    """Element data as HAEO's subentry flow/subentry stores it."""
+def element_payload(
+    name: str,
+    haeo_type: str,
+    sections: dict[str, dict[str, Any]],
+    connection: str | None,
+    flat: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Element data as HAEO's subentry flow/subentry stores it.
+
+    ``sections`` become nested objects; ``flat`` keys are stored at the top level
+    (a ``policy`` element keeps its ``rules`` list there, next to ``name``).
+    """
     payload: dict[str, Any] = {
         contracts.CONF_NAME: name,
         contracts.CONF_ELEMENT_TYPE: haeo_type,
@@ -243,4 +275,6 @@ def element_payload(name: str, haeo_type: str, sections: dict[str, dict[str, Any
         payload[CONNECTION_FIELD] = connection_target(connection)
     for section, values in sections.items():
         payload[section] = dict(values)
+    for key, value in (flat or {}).items():
+        payload[key] = value
     return payload

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from helpers import deep_copy, example
 
 from custom_components.fleetassistant.haeo_bridge.apply import (
@@ -45,7 +47,8 @@ def test_compile_plan_keeps_haoe_types_unverified_by_default() -> None:
     assert modelled["grid"] == "grid"
     assert modelled["battery"] == "battery"
     assert DEFAULT_TYPE_MAP["meter"] is None
-    assert DEFAULT_TYPE_MAP["ev_charger"] is None
+    # A charger is a deferrable load, not HAEO's vehicle element (ADR-0016).
+    assert DEFAULT_TYPE_MAP["ev_charger"] == "deferrable_load"
 
 
 def test_prevalidate_blocks_unverified_types() -> None:
@@ -124,7 +127,8 @@ def test_battery_fields_are_sectioned_and_tagged() -> None:
     plan = compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP)
     battery = next(e for e in plan.elements if e.name == "battery")
     assert battery.sections["storage"]["capacity"] == {"type": "constant", "value": 30.0}
-    assert battery.sections["limits"]["min_charge_percentage"]["value"] == 10
+    # HAEO's *_percentage fields are 0..1 ratios, so 10 % must leave as 0.1 (F-053).
+    assert battery.sections["limits"]["min_charge_percentage"]["value"] == 0.1
     assert battery.sections["power_limits"]["max_power_target_source"]["value"] == 10.0
     # HAEO's own form default, written explicitly rather than left implicit.
     assert battery.sections["advanced"]["charge_limit_cost"]["value"] == 100.0
@@ -205,3 +209,38 @@ def test_dual_optimizer_per_system_is_rejected() -> None:
     )
     codes = {issue.code for issue in prevalidate(duplicated)}
     assert "dual_optimizer" in codes
+
+
+def test_battery_degradation_becomes_a_policy_rule() -> None:
+    plan = compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP)
+    policy = next(e for e in plan.elements if e.haeo_type == "policy")
+    rule = policy.flat["rules"][0]
+    battery = next(e for e in plan.elements if e.kind == "battery")
+    assert rule["source"] == [battery.name]
+    assert rule["target"] == ["*"]
+    assert rule["price"] == {"type": "constant", "value": battery.profile_extras["degradation_cost"]["currency_per_kwh"]}
+    assert policy.connection is None
+
+
+def test_charger_is_a_deferrable_load_with_a_run_window() -> None:
+    plan = compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP)
+    ev = next(e for e in plan.elements if e.kind == "ev_charger")
+    assert ev.haeo_type == "deferrable_load"
+    assert ev.sections["schedule"]["window_calendar"] == {
+        "type": "entity",
+        "value": ["calendar.replace_me_ev_charging_window"],
+    }
+    assert ev.sections["power"]["max_power"] == {"type": "constant", "value": 11.0}
+    assert ev.sections["pricing"]["deficit_price"]["value"] == 10.0
+
+
+def test_policy_rule_naming_an_unknown_element_blocks() -> None:
+    plan = compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP)
+    elements = [
+        replace(e, flat={"rules": [{**e.flat["rules"][0], "source": ["ghost"]}]})
+        if e.haeo_type == "policy"
+        else e
+        for e in plan.elements
+    ]
+    issues = prevalidate(replace(plan, elements=tuple(elements)))
+    assert "dangling_connection" in {i.code for i in issues}

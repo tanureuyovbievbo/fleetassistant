@@ -67,6 +67,10 @@ systems:
         kind: ev_charger
         max_amps: 48
         phases: 3
+        # Placeholder calendar: a deferrable load needs a run-window calendar
+        # (ADR-0016). The installer supplies a real one, or a rule pack creates it.
+        window_calendar: calendar.replace_me_ev_charging_window
+        max_charge_kw: 11.0
         vendor: Wallbox
     connections:
       - from: grid

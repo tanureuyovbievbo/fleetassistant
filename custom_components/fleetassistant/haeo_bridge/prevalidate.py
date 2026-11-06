@@ -167,6 +167,45 @@ def prevalidate(plan: NetworkPlan) -> list[Issue]:
                 )
             )
 
+    # -- policy elements (ADR-0017) -----------------------------------------
+    for element in plan.elements:
+        if element.haeo_type != contracts.POLICY_TYPE:
+            continue
+        rules = element.flat.get(contracts.POLICY_RULES_FIELD)
+        where = f"{element.system_id}.{element.name}"
+        if element.connection is not None:
+            issues.append(
+                Issue("policy_connected", where, "a HAEO policy element has no connection target")
+            )
+        if not rules:
+            issues.append(
+                Issue("policy_rules_missing", where, "a policy element needs at least one rule")
+            )
+            continue
+        known = names_by_system.get(element.system_id, set())
+        for index, rule in enumerate(rules):
+            price = (rule.get("price") or {}).get("value")
+            if price is None or float(price) < 0:
+                issues.append(
+                    Issue(
+                        "policy_price_invalid",
+                        f"{where}.rules[{index}]",
+                        f"rule price must be a non-negative {contracts.POLICY_PRICE_UNIT}",
+                    )
+                )
+            for endpoint in ("source", "target"):
+                for name in rule.get(endpoint, []):
+                    if name == contracts.POLICY_WILDCARD:
+                        continue
+                    if name not in known:
+                        issues.append(
+                            Issue(
+                                "dangling_connection",
+                                f"{where}.rules[{index}].{endpoint}",
+                                f"rule names unknown element {name!r}",
+                            )
+                        )
+
     # -- one optimizer per system (C-11) ------------------------------------
     per_system = [h.system_id for h in plan.hubs]
     if len(per_system) != len(set(per_system)):
