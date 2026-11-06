@@ -20,6 +20,7 @@ class SiteRuntime:
     audit: AuditLog
     issues: list[Issue] = field(default_factory=list)
     last_apply_status: str = "not_applied"
+    last_apply_report: Any = None
 
     @property
     def site_id(self) -> str:
@@ -36,6 +37,12 @@ class SiteRuntime:
             "deployment_profile": self.profile["deployment"]["profile"],
             "schema_version": self.profile.get("schema_version"),
             "last_apply_status": self.last_apply_status,
+            "last_apply_operations": [] if self.last_apply_report is None else [
+                {"type": op.type, "name": op.name} for op in self.last_apply_report.operations
+            ],
+            "last_apply_issues": [] if self.last_apply_report is None else [
+                {"code": i.code, "path": i.path, "message": i.message} for i in self.last_apply_report.issues
+            ],
             "audit_records": len(self.audit),
             "audit_chain_valid": self.audit.verify(),
             "issues": [

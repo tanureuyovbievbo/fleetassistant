@@ -1,0 +1,42 @@
+# Review later — open modelling decisions and known sharp edges
+
+A register, not a promise. Every entry is a place where the code currently does
+something defensible **with a known gap**, and where a reviewer should look again
+once the blocking questions close. Code refers to these as `RL-xx`.
+
+Rules for this file:
+
+- An entry is opened when the code ships a deliberate simplification.
+- An entry closes only when the gap is either fixed or recorded as a decision.
+- `Trigger` says what makes the review urgent; `Owner` says which deliverable
+  answers it.
+
+| ID | Where | What is deliberately unfinished | Trigger | Owner |
+| --- | --- | --- | --- | --- |
+| RL-01 | `haeo_bridge/plan.py:_degradation_policies` | Only **discharge** wear is priced. Charging-side wear is unpriced, so a plan may cycle a battery through cheap-hours arbitrage without paying for the wear that causes. | Any site whose plan charges from the grid at negative or near-zero prices | D05 / OQ-020 |
+| RL-02 | `haeo_bridge/plan.py:_degradation_policies` | The rule's price is a **constant** snapshot of `degradation_cost`. A future cost series (temperature- or SOC-dependent) would need a per-period entity instead of a constant. | First profile that wants degradation cost to vary | D05 |
+| RL-03 | `haeo_bridge/plan.py:_degradation_policies` | The rule targets the wildcard `["*"]`. With one battery per system that is exact; with two batteries, each battery's rule prices **the other battery's discharge** too (both wildcard rules cover one flow). | First multi-battery system | D04 / D05 |
+| RL-04 | `haeo_bridge/fields.py:BATTERY_FIELDS` (`efficiency`) | HAEO's efficiency default is `95.0` while every neighbouring ratio is `0..1`; we pass the profile value through unchanged. If HAEO divides by 100 internally, a profile value of `95` is right; if it multiplies, it is a 9500 % round-trip loss. | Before any live apply | D04 / OQ-021 |
+| RL-05 | `telemetry.py`, `haeo_bridge/fields.py` | SOC is declared in `%` but HAEO stores 0..1 ratios (F-053). Telemetry capture of SOC must divide by 100; not implemented yet. | First plan/performance capture | D07 |
+| RL-06 | `haeo_bridge/fields.py:GRID_FIELDS` | Grid `import_price_entity`/`export_price_entity` point at sensors **we** publish, but nothing publishes them yet — the compiler produces a payload, not an entity. A plan compiled today would reference a missing entity. | Before any live apply | D05 |
+| RL-07 | `site_profiles/examples/solark_gateway_primary.yaml` | `window_calendar` is a placeholder entity id. Nothing in the integration creates or maintains the calendar a deferrable load needs. | First gateway site | D03 / OQ-022 |
+| RL-08 | `haeo_bridge/fields.py` (`meter`/`thermostat`/`relay`) | Three profile kinds still have **no** HAEO carrier; they carry controls only, and their energy hides inside another element. | First profile that needs them for optimisation rather than control | D04 / ADR-0013 |
+| RL-09 | `haeo_bridge/plan.py:_bus_element` | Every connected element joins our `<system>_bus` junction. HAEO creates its own switchboard junction per hub; the two are not reconciled, so HAEO's network view may show an island. | Live apply | D04 / OQ-018 |
+| RL-10 | `haeo_bridge/apply.py` (`PRUNE_UNKNOWN_ELEMENTS = False`) | Elements we do not know about are reported, never deleted. Corollary: a **removed** profile element stays in HAEO until someone deletes it by hand. | First profile edit after a live apply | D04 / OQ-018 |
+| RL-11 | `profile/schema.py` (`degradation_cost.currency`) | The degradation currency is not compared to `site.currency`; a profile mixing EUR and USD passes validation. | First multi-currency fleet | D03 |
+| RL-12 | `haeo_bridge/fields.py:DEFERRABLE_LOAD_FIELDS` | `deficit_price`/`overage_price` are left at HAEO's defaults (10.0/0.0), which encode a hard preference for meeting the window. That is a policy choice we inherited, not one we made. | First charger profile whose owner wants softer behaviour | D05 |
+| RL-13 | `haeo_bridge/ha_port.py` | The port blocks on `run_coroutine_threadsafe`, so it must never be called from the event loop. One accidental `await`-free call from `async_setup_entry` would deadlock the loop for the timeout. | Any new caller of the bridge | D04 |
+| RL-14 | `runtime.py:_apply_profile` | Provisioning runs once per setup when the flag is on; there is no re-apply on option change, no debounce, no daily reconcile. Two HA restarts in a row re-run the diff (cheap: it no-ops) but nothing repairs drift. | First site with the flag enabled | D04 / D08 |
+| RL-15 | `adapters/stubs.py` | Both adapters are stubs. Their capabilities exist so the contract is exercised, not because any device is spoken to. | First real vendor adapter | D06 / D08 |
+| RL-16 | `pricing/providers.py:DynamicSeries` | Dynamic prices use hold-last for gaps; a stale feed therefore looks like a flat price rather than a missing one. | First dynamic-price site | D05 / D07 |
+| RL-17 | `ledger.py` | Exposure math is a sweep over commitment boundaries; it assumes kW is constant across each interval. Program rules that define energy (kWh) rather than power need a different model. | First real program enrolment | D09 / D10 |
+| RL-18 | `haeo_bridge/contracts.py` | `HAEO_SURFACE_LIVE_VERIFIED`, `HAEO_SURFACE_COMMIT`, `ELEMENT_FIELDS_LIVE_VERIFIED` and `HA_PORT_LIVE_VERIFIED` are hand-maintained booleans. Nothing forces them to be re-read after a HAEO release. | Any HAEO version bump | D04 / D08 |
+
+## How an entry closes
+
+1. Fix the code, or record an ADR that accepts the gap.
+2. Delete the row and the corresponding `RL-xx` comment.
+3. Note the closure in `CHANGELOG.md` under "Changed".
+
+A row that reaches its trigger **without** being reviewed is a defect against
+C-08/C-14/C-23, not a stale note.

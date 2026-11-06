@@ -12,15 +12,21 @@ current:
   step: spike                    # context-check | draft | verify | review | fix | gate | accepted
 
 next_action: >
-  OQ-019 and OQ-020 are resolved from source (ADR-0016, ADR-0017): a charger is a
-  deferrable load, degradation is a policy rule, and profile percentages are written
-  as 0..1 ratios. What remains before a live apply: OQ-021 (efficiency units),
-  OQ-022 (who supplies the charger's run-window calendar), the meter/thermostat/relay
-  carriers, then the live run. Next concrete step: wire runtime.py to call the driver
-  behind a feature flag so the first live apply has one switch to flip.
-
+  The write path is wired and switched off: the options flag apply_haeo_plan (default
+  false) makes runtime.py run the flow driver in an executor thread, audit the result
+  and raise a repair issue when the apply is blocked or partial. Deliberate gaps now
+  live in docs/verification/REVIEW_LATER.md (RL-01..RL-18) with code references and an
+  integrity test. Next: close OQ-021 (HAEO efficiency units) by reading the battery
+  segment code, then the live run.
 
 implemented:
+  - date: 2026-11-06
+    summary: >
+      First live write path wired behind the apply_haeo_plan option (default off), with
+      executor-thread execution, loop-bridged port, audit record and repair issue.
+      Review register REVIEW_LATER.md (RL-01..RL-18) records every deliberate gap; a
+      test keeps code references and rows in sync. 134 tests pass.
+    entry: docs/updates/2026-11-06-first-write-path.md
   - date: 2026-11-06
     summary: >
       Charger compiles to deferrable_load (ADR-0016); battery degradation compiles to a

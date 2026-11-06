@@ -10,10 +10,19 @@ Verification status: the manager signatures were read from Home Assistant
 2026.1.1 source and the developer docs (FACTS F-031..F-038), but this module has
 not yet run against a live instance, so ``HA_PORT_LIVE_VERIFIED`` stays false and
 the live contract test is the gate that flips it.
+
+Threading model: every method is **synchronous** and blocks on a future scheduled
+onto ``hass.loop``. That is deliberate. The bridge's driver is synchronous
+(``apply_plan``), and Home Assistant must never have a blocking call inside its
+event loop, so ``runtime.py`` runs the apply in an executor thread and the port
+bridges back to the loop. Calling these methods from the event loop itself would
+deadlock — the runtime's executor hop is what prevents that.
 """
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Coroutine
 from typing import Any
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, SOURCE_USER, ConfigEntry, SubentryFlowContext
@@ -43,32 +52,39 @@ def _record(entry: ConfigEntry) -> EntryRecord:
 class HomeAssistantFlowPort:
     """Drive HAEO's flows through ``hass``."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, *, timeout: float = 60.0) -> None:
         self.hass = hass
+        self.timeout = timeout
 
-    async def haeo_version(self) -> str | None:
-        entries = self.hass.config_entries.async_entries(contracts.HAEO_DOMAIN)
-        if not entries:
+    def _call(self, coro: Coroutine[Any, Any, Any]) -> Any:
+        """Run one manager coroutine on Home Assistant's loop and wait for it."""
+        return asyncio.run_coroutine_threadsafe(coro, self.hass.loop).result(self.timeout)
+
+    def haeo_version(self) -> str | None:
+        if not self.hass.config_entries.async_entries(contracts.HAEO_DOMAIN):
             return None
+        return self._call(self._haeo_version())
+
+    async def _haeo_version(self) -> str | None:
         integration = await async_get_integration(self.hass, contracts.HAEO_DOMAIN)
         return integration.version
 
-    async def entries(self, domain: str) -> list[EntryRecord]:
+    def entries(self, domain: str) -> list[EntryRecord]:
         return [_record(entry) for entry in self.hass.config_entries.async_entries(domain)]
 
-    async def init_config_flow(self, handler: str) -> dict[str, Any]:
-        return await self.hass.config_entries.flow.async_init(handler, context={"source": SOURCE_USER})
+    def init_config_flow(self, handler: str) -> dict[str, Any]:
+        return self._call(self.hass.config_entries.flow.async_init(handler, context={"source": SOURCE_USER}))
 
-    async def configure(self, flow_id: str, user_input: dict[str, Any]) -> dict[str, Any]:
-        return await self.hass.config_entries.flow.async_configure(flow_id, user_input=user_input)
+    def configure(self, flow_id: str, user_input: dict[str, Any]) -> dict[str, Any]:
+        return self._call(self.hass.config_entries.flow.async_configure(flow_id, user_input=user_input))
 
-    async def init_options_flow(self, entry_id: str) -> dict[str, Any]:
-        return await self.hass.config_entries.options.async_init(entry_id)
+    def init_options_flow(self, entry_id: str) -> dict[str, Any]:
+        return self._call(self.hass.config_entries.options.async_init(entry_id))
 
-    async def configure_options(self, flow_id: str, user_input: dict[str, Any]) -> dict[str, Any]:
-        return await self.hass.config_entries.options.async_configure(flow_id, user_input=user_input)
+    def configure_options(self, flow_id: str, user_input: dict[str, Any]) -> dict[str, Any]:
+        return self._call(self.hass.config_entries.options.async_configure(flow_id, user_input=user_input))
 
-    async def init_subentry_flow(
+    def init_subentry_flow(
         self,
         entry_id: str,
         subentry_type: str,
@@ -79,12 +95,12 @@ class HomeAssistantFlowPort:
         context = SubentryFlowContext(source=source)
         if subentry_id is not None:
             context["subentry_id"] = subentry_id  # type: ignore[typeddict-unknown-key]
-        return await self.hass.config_entries.subentries.async_init((entry_id, subentry_type), context=context)
+        return self._call(self.hass.config_entries.subentries.async_init((entry_id, subentry_type), context=context))
 
-    async def configure_subentry(self, flow_id: str, user_input: dict[str, Any]) -> dict[str, Any]:
-        return await self.hass.config_entries.subentries.async_configure(flow_id, user_input=user_input)
+    def configure_subentry(self, flow_id: str, user_input: dict[str, Any]) -> dict[str, Any]:
+        return self._call(self.hass.config_entries.subentries.async_configure(flow_id, user_input=user_input))
 
-    async def remove_subentry(self, entry_id: str, subentry_id: str) -> None:
+    def remove_subentry(self, entry_id: str, subentry_id: str) -> None:
         entry = self.hass.config_entries.async_get_entry(entry_id)
         if entry is None:
             return

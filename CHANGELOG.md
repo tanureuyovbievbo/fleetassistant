@@ -5,6 +5,20 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Review register `docs/verification/REVIEW_LATER.md` (18 deliberate gaps, each with
+  file, trigger and owner) plus `tests/unit/test_review_register.py`, which fails when
+  a code reference `RL-xx` has no row or a row has no trigger/owner.
+- Live write path behind the options flag `apply_haeo_plan` (default off):
+  `runtime.py` runs `apply_plan` with `FlowHaeoDriver(HomeAssistantFlowPort(hass))`
+  in an executor thread, stores the report on `SiteRuntime`, appends a `haeo.apply`
+  audit record and raises/clears the `haeo_apply_incomplete` repair issue.
+- `HomeAssistantFlowPort` bridges each flow call onto `hass.loop` and blocks, so the
+  synchronous bridge driver can run outside the event loop; the driver accepts a
+  blocking port (regression test `test_a_blocking_port_is_accepted`).
+- Options flow toggle for provisioning, with description text; `SiteRuntime`
+  diagnostics now expose the last apply's operations and issues.
+
+### Added
 - Charger modelling: `ev_charger` compiles to HAEO's `deferrable_load`
   (`schedule.window_calendar`, `power.max_power`, `deficit_price`/`overage_price`),
   with `window_calendar` now required by the site-profile schema (ADR-0016). HAEO's
@@ -66,7 +80,7 @@ All notable changes to this project are documented here. The format follows [Kee
   - `adapters/` — capability descriptors (limits, rate limit, hysteresis, consent, backing, authority, fail-safe), safety pipeline, and API-backed plus Modbus-backed stub adapters behind one contract.
   - `executor.py`, `audit.py`, `ledger.py`, `telemetry.py` — plan execution with staleness and fail-safe, SHA-256 hash-chained audit log, commitments ledger that rejects over-commitment, telemetry envelope v1 with dedupe and firm/estimated separation.
   - Home Assistant glue: `config_flow.py` (config + options), `runtime.py` (repairs on validation failure), `manifest.json` with zero pip requirements, `hacs.json`.
-- Tests: 130 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, element field table and connectivity, flow driver against a fake port, pricing, adapters, executor, ledger, telemetry, boundary probes).
+- Tests: 134 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, element field table and connectivity, flow driver against a fake port, pricing, adapters, executor, ledger, telemetry, boundary probes).
 - CI: `ci.yml` (ruff, boundary probes, pytest, hassfest, HACS validation, manifest pin check), `release.yml` (zip + release), `haeo-contract.yml` (manual live-HAEO contract run).
 
 ### Added

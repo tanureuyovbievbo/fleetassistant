@@ -15,7 +15,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
 from .audit import AuditLog
-from .const import DOMAIN, NAME
+from .const import CONF_APPLY_HAEO_PLAN, DOMAIN, NAME
+from .haeo_bridge.apply import ApplyReport, apply_plan
+from .haeo_bridge.flows import FlowHaeoDriver
+from .haeo_bridge.ha_port import HomeAssistantFlowPort
 from .haeo_bridge.plan import compile_plan
 from .haeo_bridge.prevalidate import prevalidate
 from .profile.schema import Issue, validate_profile
@@ -79,7 +82,57 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # unverified HAEO type map): the site exists, but nothing is applied.
     if any(issue.is_error for issue in plan_issues):
         runtime.last_apply_status = "blocked"
+
+    if entry.options.get(CONF_APPLY_HAEO_PLAN):
+        await _apply_profile(hass, entry, runtime)
     return True
+
+
+async def _apply_profile(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteRuntime) -> None:
+    """Provision HAEO from the compiled plan, outside the event loop.
+
+    The bridge driver is synchronous and answers HAEO's flows one step at a time,
+    so it runs in an executor thread while the port bridges each flow call back
+    onto ``hass.loop`` (see ``haeo_bridge/ha_port.py``). Failures never break
+    setup: the entry keeps working, the report is stored for diagnostics, the
+    audit trail records the attempt, and a repair issue tells the user what HAEO
+    asked for.
+    """
+    driver = FlowHaeoDriver(HomeAssistantFlowPort(hass))
+    report: ApplyReport = await hass.async_add_executor_job(apply_plan, driver, runtime.plan)
+
+    runtime.last_apply_status = report.status
+    runtime.last_apply_report = report
+    runtime.issues.extend(report.issues)
+    runtime.audit.append(
+        "haeo.apply",
+        {
+            "status": report.status,
+            "haeo_version": report.haeo_version,
+            "operations": [{"type": op.type, "name": op.name, "system_id": op.system_id} for op in report.operations],
+            "issues": [{"code": i.code, "path": i.path, "message": i.message} for i in report.issues],
+        },
+    )
+
+    if report.status in {"blocked", "partial"}:
+        first = report.issues[0] if report.issues else None
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            f"{entry.entry_id}_haeo_apply",
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="haeo_apply_incomplete",
+            translation_placeholders={
+                "entry": NAME,
+                "status": report.status,
+                "path": "" if first is None else first.path,
+                "message": "" if first is None else first.message,
+                "code": "" if first is None else first.code,
+            },
+        )
+    else:
+        ir.async_delete_issue(hass, DOMAIN, f"{entry.entry_id}_haeo_apply")
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

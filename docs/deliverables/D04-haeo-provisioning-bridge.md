@@ -19,6 +19,8 @@
 >
 > **Still open:** the live run (accept HAEO's payloads — OQ-017), how our `_bus` junction relates to HAEO's own switchboard junction and whether pruning may ever be enabled (OQ-018), who supplies the run-window calendar a charger needs (OQ-022), HAEO's efficiency units (OQ-021), OQ-011 (shadow prices), OQ-007 (price/load sensor formats).
 >
+> **Wired 2026-11-06:** `runtime.py` calls `apply_plan` when the `apply_haeo_plan` option is on (default off), in an executor thread, with the port bridging onto `hass.loop`; results are audited and surfaced as a repair issue. Deliberate gaps are in `docs/verification/REVIEW_LATER.md`.
+>
 > **Resolved 2026-11-06:** a charger is a `deferrable_load` (ADR-0016, OQ-019) and battery degradation is a `policy` rule (ADR-0017, OQ-020); profile percentages are written as 0..1 ratios (F-052).
 >
 > **Field table (2026-11-05):** element payloads are built from `haeo_bridge/fields.py`, which records each section and key against a primary source (S-021..S-028). Topology is a per-element `connection` field pointing at a synthesised `<system>_bus` junction (ADR-0015); the bridge never prunes elements it did not create.

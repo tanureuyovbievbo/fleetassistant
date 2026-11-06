@@ -278,10 +278,20 @@ class FlowHaeoDriver:
         subentry = self._subentry(record, name)
         self._await(self._port.remove_subentry(record.entry_id, subentry.subentry_id))
 
-    def _await(self, awaitable: Any) -> Any:
-        import asyncio
+    def _await(self, result: Any) -> Any:
+        """Resolve one port call.
 
-        return asyncio.run(awaitable)
+        The port is asynchronous when the caller runs outside Home Assistant's
+        event loop (tests, scripts). A port that bridges into a loop we do not
+        own — ``HomeAssistantFlowPort`` called from an executor thread — returns
+        the value directly, because it has already blocked on the loop's future.
+        """
+        import asyncio
+        import inspect
+
+        if inspect.isawaitable(result):
+            return asyncio.run(result)
+        return result
 
     def _entries(self) -> list[EntryRecord]:
         return self._await(self._port.entries(contracts.HAEO_DOMAIN))

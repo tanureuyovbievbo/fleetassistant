@@ -90,3 +90,4 @@ Canonical instructions for any AI coding agent working in this repository. This 
 | 2026-11-06 | HAEO flow driver + HA port | `custom_components/fleetassistant/haeo_bridge/` | ADR-0014 |
 | 2026-11-06 | HAEO element field table + topology as connection fields | `custom_components/fleetassistant/haeo_bridge/fields.py`, `plan.py` | ADR-0015 |
 | 2026-11-06 | Charger carrier, degradation policy, ratio conversion | `custom_components/fleetassistant/haeo_bridge/{fields,plan,prevalidate}.py` | ADR-0016, ADR-0017 |
+| 2026-11-06 | Review register + first write path (`apply_haeo_plan`) | `runtime.py`, `haeo_bridge/ha_port.py`, `docs/verification/REVIEW_LATER.md` | RL-01..RL-18 |

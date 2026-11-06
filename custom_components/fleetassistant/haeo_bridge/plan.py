@@ -396,6 +396,19 @@ def _degradation_policies(elements: Sequence[ElementPlan], system_id: str) -> li
     for a single source with a wildcard target that cut collapses to the source's
     own outbound edges — i.e. exactly the battery's discharge (F-056). Worse
     numbers make the optimizer prefer other sources.
+
+    Deliberate gaps, reviewed again at docs/verification/REVIEW_LATER.md:
+
+    - RL-01: only *discharge* wear is priced. Charging-side wear is unpriced, so an
+      arbitrage plan can cycle the battery without paying for the wear it causes.
+    - RL-02: the price is a constant snapshot. A cost that varies with temperature
+      or SOC needs a per-period entity, not a constant.
+    - RL-03: the wildcard target is exact for one battery per system. With two
+      batteries, both rules cover the same flow and each battery pays the other's
+      discharge cost.
+
+    Changing any of these changes dispatch, so it is a decision (ADR-0017), never a
+    quiet edit.
     """
     policies: list[ElementPlan] = []
     for element in elements:

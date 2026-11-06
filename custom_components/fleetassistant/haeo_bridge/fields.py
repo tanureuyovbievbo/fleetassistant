@@ -189,6 +189,9 @@ PROFILE_ONLY_KEYS = frozenset(
     }
 )
 
+#: RL-04 (docs/verification/REVIEW_LATER.md): HAEO's efficiency default is 95.0
+#: while every neighbouring ratio is 0..1, so a profile value is passed through
+#: unchanged until the live run says whether HAEO divides by 100 (OQ-021).
 ELEMENT_FIELDS_LIVE_VERIFIED = False
 ELEMENT_FIELDS_SOURCE = (
     f"SOURCE_VERIFIED field table from haeo@{contracts.HAEO_SURFACE_VERSION} "

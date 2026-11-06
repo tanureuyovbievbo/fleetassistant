@@ -13,7 +13,13 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.data_entry_flow import FlowResult
 
-from .const import DEFAULT_RELAX_IMPOSSIBLE_PLANS, DOMAIN, NAME
+from .const import (
+    CONF_APPLY_HAEO_PLAN,
+    DEFAULT_APPLY_HAEO_PLAN,
+    DEFAULT_RELAX_IMPOSSIBLE_PLANS,
+    DOMAIN,
+    NAME,
+)
 from .profile.schema import DEPLOYMENT_PROFILES, validate_profile
 from .site import default_profile
 
@@ -41,7 +47,12 @@ class FleetassistantConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(
                     title=f"{NAME}: {user_input['site_name']}",
                     data={"profile": profile},
-                    options={"relax_impossible_plans": DEFAULT_RELAX_IMPOSSIBLE_PLANS, "preset_days": DEFAULT_PRESET_DAYS},
+                    options={
+                        "relax_impossible_plans": DEFAULT_RELAX_IMPOSSIBLE_PLANS,
+                        "preset_days": DEFAULT_PRESET_DAYS,
+                        CONF_APPLY_HAEO_PLAN: DEFAULT_APPLY_HAEO_PLAN,
+                        "profile_json": "",
+                    },
                 )
 
         return self.async_show_form(
@@ -91,6 +102,7 @@ class FleetassistantOptionsFlow(OptionsFlow):
                     data={
                         "relax_impossible_plans": bool(user_input["relax_impossible_plans"]),
                         "preset_days": int(user_input["preset_days"]),
+                        CONF_APPLY_HAEO_PLAN: bool(user_input.get(CONF_APPLY_HAEO_PLAN, DEFAULT_APPLY_HAEO_PLAN)),
                         "profile_json": str(user_input.get("profile_json") or ""),
                     },
                 )
@@ -106,6 +118,10 @@ class FleetassistantOptionsFlow(OptionsFlow):
                     vol.Required("preset_days", default=current.get("preset_days", DEFAULT_PRESET_DAYS)): vol.In(
                         [2, 3, 5, 7]
                     ),
+                    vol.Required(
+                        CONF_APPLY_HAEO_PLAN,
+                        default=current.get(CONF_APPLY_HAEO_PLAN, DEFAULT_APPLY_HAEO_PLAN),
+                    ): bool,
                     vol.Optional("profile_json", default=current.get("profile_json", "")): str,
                 }
             ),

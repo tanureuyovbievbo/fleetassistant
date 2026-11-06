@@ -324,3 +324,50 @@ def test_unexpected_element_is_reported_not_deleted() -> None:
     assert report.operations == []
     assert any(issue.code == "element_not_pruned" for issue in report.issues)
     assert not any(call.startswith("remove_subentry:") for call in port.calls)
+
+
+class BlockingFlowPort(FakeFlowPort):
+    """A port that blocks and returns values, like ``HomeAssistantFlowPort``.
+
+    ``HomeAssistantFlowPort`` runs each manager coroutine on HA's loop and waits
+    for the future, because the bridge driver is synchronous and the runtime calls
+    it from an executor thread. The driver must accept such a port — a value, not
+    a coroutine — or the first real apply would fail with "object dict can't be
+    used in await".
+    """
+
+    _METHODS = frozenset(
+        {
+            "haeo_version",
+            "entries",
+            "init_config_flow",
+            "configure",
+            "init_options_flow",
+            "configure_options",
+            "init_subentry_flow",
+            "configure_subentry",
+            "remove_subentry",
+        }
+    )
+
+    def __getattribute__(self, name: str) -> Any:
+        attribute = object.__getattribute__(self, name)
+        if name in BlockingFlowPort._METHODS and callable(attribute):
+
+            def blocking(*args: Any, **kwargs: Any) -> Any:
+                import asyncio
+
+                return asyncio.run(attribute(*args, **kwargs))
+
+            return blocking
+        return attribute
+
+
+def test_a_blocking_port_is_accepted() -> None:
+    port = BlockingFlowPort()
+    driver = FlowHaeoDriver(port)
+
+    report = apply_plan(driver, _plan())
+
+    assert report.status == "applied"
+    assert port.hub_entries, "the hub flow was answered"

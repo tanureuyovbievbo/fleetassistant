@@ -18,6 +18,7 @@ epics:
     stories:
       S1-spike: { status: in-progress, note: "source spike done (specs/archive/spikes/SPIKE-2026-11-05-haeo-v050-surface.md); live half blocked by SPIKE-LIVE-ACCESS" }
       S2-plan-compile: { status: done }
+      S9-write-path: { status: done, note: "runtime arms the flow driver behind apply_haeo_plan (default off); executor thread + loop-bridged port; audit + repair issue" }
       S8-modelling: { status: done, note: "charger→deferrable_load (ADR-0016), degradation→policy rule (ADR-0017), percentage→ratio conversion (F-052)" }
       S7-fields: { status: partial, note: "field table, tagged values, connectivity and grid price wiring done offline (haeo_bridge/fields.py); units and acceptance await a live instance (OQ-017)" }
       S3-prevalidate: { status: done }
