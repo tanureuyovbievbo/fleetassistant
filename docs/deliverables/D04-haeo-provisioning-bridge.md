@@ -15,7 +15,9 @@
 >
 > **Design correction (source-verified):** HAEO models elements and connections as config **subentries** of the hub entry, not as separate config entries. The runtime `HaeoDriver` therefore drives subentry flows; the `ElementPlan`/`ConnectionPlan` data model is unaffected. `meter`, `thermostat`, and `relay` have no HAEO element — see ADR-0013 (proposed).
 >
-> **Still open:** OQ-016 (programmatic subentry API), OQ-017 (per-element field keys/units), OQ-011 (policy pricing/shadow prices), OQ-007 (price/load sensor formats).
+> **Flow driver (implemented):** `haeo_bridge/flows.py` answers HAEO's config flow (hub), options flow (hub settings) and subentry flows (elements) through a narrow `FlowPort`; `haeo_bridge/ha_port.py` is the only module touching `hass`. A refused write stops the apply as `partial` with a repair issue. Rule: ADR-0014.
+>
+> **Still open:** OQ-017 (per-element field keys/units), OQ-018 (HAEO's switchboard subentry + connection field names), OQ-011 (policy pricing/shadow prices), OQ-007 (price/load sensor formats), and the live run (OQ-016 source half is closed: F-031..F-038).
 >
 > The outline below remains the acceptance contract; code lands against it.
 >

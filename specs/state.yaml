@@ -12,14 +12,22 @@ current:
   step: spike                    # context-check | draft | verify | review | fix | gate | accepted
 
 next_action: >
-  Two independent fronts. (1) Bridge: write the Home Assistant HaeoDriver over
-  config_entries.subentries (element creation is a subentry flow, see F-018) behind the
-  existing HaeoDriver protocol, keeping HA imports inside haeo_bridge/. Needs OQ-016.
-  (2) Modelling: none, because a live instance is the only way to close the remaining
-  xfails -- OQ-017 (per-element field keys) and the meter/thermostat/relay decision in
-  ADR-0013 are prerequisites for a real apply.
+  OQ-016 is closed from source (F-031..F-038) and the flow driver exists
+  (haeo_bridge/flows.py, ha_port.py, ADR-0014). What still stops a real apply: OQ-017
+  (per-element field keys at v0.5.0) and OQ-018 (HAEO's own switchboard subentry plus
+  connection field names), then the live run that flips HA_PORT_LIVE_VERIFIED. Next
+  concrete step is a source read of core/schema/elements/{grid,battery,load,solar,ev}.py
+  to build the field table, since that work needs no live instance.
 
 implemented:
+  - date: 2026-11-06
+    summary: >
+      HAEO flow driver: hubs via the config flow, hub settings via the options flow,
+      elements via subentry flows, with a narrow FlowPort seam and a Home Assistant
+      implementation that is the only module touching hass. Apply reports partial and
+      stops on the first refused write; unrecorded connection fields block before any
+      flow starts. 122 tests pass offline; the live gate stays shut.
+    entry: docs/updates/2026-11-05-ha-flow-driver.md
   - date: 2026-11-05
     summary: >
       e04 source spike: HAEO v0.5.0's hub/element/connection surface read from the pinned
@@ -39,10 +47,18 @@ human_decisions_pending:
     topic: License for integration and fleet cloud
     needed_by: D02 gate
   - id: SPIKE-LIVE-ACCESS
-    topic: Provide a live HA + HAEO v0.5.0 instance (or run the haeo-contract workflow) so OQ-002/OQ-006/OQ-007 can close
+    topic: Provide a live HA + HAEO v0.5.0 instance (or run the haeo-contract workflow) so OQ-002/OQ-006/OQ-016/OQ-017/OQ-018 can close
     needed_by: e04 acceptance
 
 decisions:
+  - id: ADR-0014
+    date: 2026-11-06
+    status: accepted
+    summary: >
+      HAEO is provisioned by answering its config/options/subentry flows through a narrow
+      port; direct subentry creation and HAEO storage writes are rejected. A form we
+      cannot answer stops the apply with a named FlowError instead of guessing. Deletion
+      is the only direct subentry call, because no flow exists for it.
   - id: ADR-0013
     date: 2026-11-05
     status: proposed
@@ -68,6 +84,6 @@ decisions:
       separate session (superseded by the 2026-11-05 implemented entry above).
 
 last_session:
-  date: 2026-11-05
+  date: 2026-11-06
   role: source-verifier (e04 spike, source half)
-  update_entry: docs/updates/2026-11-05-haeo-source-spike.md
+  update_entry: docs/updates/2026-11-05-ha-flow-driver.md

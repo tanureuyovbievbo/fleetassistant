@@ -20,7 +20,21 @@ from .plan import ElementPlan, NetworkPlan
 from .prevalidate import prevalidate
 
 OperationType = Literal["create_hub", "update_hub", "remove_hub", "create_element", "update_element", "remove_element", "create_connection", "remove_connection"]
-Status = Literal["applied", "noop", "blocked"]
+Status = Literal["applied", "noop", "blocked", "partial"]
+
+
+class DriverError(RuntimeError):
+    """A driver refused or could not complete a write.
+
+    Carries a stable ``code`` (turned into a repair issue) and the ``path`` of
+    the thing that failed, so a partial apply is reported item by item instead
+    of vanishing into a traceback.
+    """
+
+    def __init__(self, message: str, *, code: str = "haeo_write_failed", path: str = "") -> None:
+        super().__init__(message)
+        self.code = code
+        self.path = path
 
 
 @dataclass(frozen=True)
@@ -45,6 +59,10 @@ class ApplyReport:
     @property
     def ok(self) -> bool:
         return self.status in ("applied", "noop")
+
+    @property
+    def applied(self) -> list[Operation]:
+        return [op for op in self.operations if op.type not in ("remove_hub", "remove_element", "remove_connection")]
 
 
 class HaeoDriver(Protocol):
@@ -93,7 +111,12 @@ def check_version(detected: str | None, supported: tuple[str, ...] = SUPPORTED_H
 
 
 def _element_payload(element: ElementPlan) -> dict[str, Any]:
-    return {"type": element.haeo_type, "params": element.params, "inputs": element.inputs, "kind": element.kind}
+    """What HAEO stores for an element, and therefore what the diff compares.
+
+    ``kind`` is a profile concept and is not part of it; it only picks the type
+    and decides which fields the parameters carry.
+    """
+    return {"type": element.haeo_type, "data": {**element.params, **element.inputs}}
 
 
 def apply_plan(
@@ -115,6 +138,9 @@ def apply_plan(
         return ApplyReport(status="blocked", haeo_version=detected, issues=[version_issue])
 
     issues = prevalidate(plan)
+    preflight = getattr(driver, "preflight", None)
+    if preflight is not None:
+        issues = issues + list(preflight(plan))
     if any(issue.is_error for issue in issues):
         return ApplyReport(status="blocked", haeo_version=detected, issues=issues)
 
@@ -125,17 +151,15 @@ def apply_plan(
     for name, hub in desired_hubs.items():
         options = hub.options()
         if name not in live_hubs:
-            report.operations.append(Operation("create_hub", hub.system_id, name))
-            if not dry_run:
-                driver.create_hub(name, options)
-        elif live_hubs[name].get("options") != options:
-            report.operations.append(Operation("update_hub", hub.system_id, name))
-            if not dry_run:
-                driver.update_hub(name, options)
+            if not _run(report, Operation("create_hub", hub.system_id, name), driver.create_hub, dry_run, name, options):
+                return report
+        elif live_hubs[name].get("options") != options and not _run(
+            report, Operation("update_hub", hub.system_id, name), driver.update_hub, dry_run, name, options
+        ):
+            return report
     for name in sorted(set(live_hubs) - set(desired_hubs)):
-        report.operations.append(Operation("remove_hub", "", name))
-        if not dry_run:
-            driver.remove_hub(name)
+        if not _run(report, Operation("remove_hub", "", name), driver.remove_hub, dry_run, name):
+            return report
 
     for hub in plan.hubs:
         live_elements = driver.list_elements(hub.hub)
@@ -144,34 +168,70 @@ def apply_plan(
         for element in desired:
             payload = _element_payload(element)
             if element.name not in live_elements:
-                report.operations.append(Operation("create_element", element.system_id, element.name))
-                if not dry_run:
-                    driver.create_element(hub.hub, element)
-            elif live_elements[element.name].get("payload") != payload:
-                report.operations.append(Operation("update_element", element.system_id, element.name))
-                if not dry_run:
-                    driver.update_element(hub.hub, element.name, element)
+                if not _run(
+                    report,
+                    Operation("create_element", element.system_id, element.name),
+                    driver.create_element,
+                    dry_run,
+                    hub.hub,
+                    element,
+                ):
+                    return report
+            elif live_elements[element.name].get("payload") != payload and not _run(
+                report,
+                Operation("update_element", element.system_id, element.name),
+                driver.update_element,
+                dry_run,
+                hub.hub,
+                element.name,
+                element,
+            ):
+                return report
         for name in sorted(set(live_elements) - desired_names):
-            report.operations.append(Operation("remove_element", hub.system_id, name))
-            if not dry_run:
-                driver.remove_element(hub.hub, name)
+            if not _run(
+                report, Operation("remove_element", hub.system_id, name), driver.remove_element, dry_run, hub.hub, name
+            ):
+                return report
 
+        desired_connections = {(c.source, c.target): c for c in plan.connections if c.system_id == hub.system_id}
+        if not desired_connections:
+            # Nothing to create; listing live links is only needed to prune them,
+            # and the flow driver cannot read them yet (OQ-017).
+            continue
         live_connections = driver.list_connections(hub.hub)
-        desired_connections = {
-            (c.source, c.target): c for c in plan.connections if c.system_id == hub.system_id
-        }
-        for (source, target) in sorted(set(desired_connections) - live_connections):
-            report.operations.append(Operation("create_connection", hub.system_id, f"{source}->{target}"))
-            if not dry_run:
-                driver.create_connection(hub.hub, source, target)
-        for (source, target) in sorted(live_connections - set(desired_connections)):
-            report.operations.append(Operation("remove_connection", hub.system_id, f"{source}->{target}"))
-            if not dry_run:
-                driver.remove_connection(hub.hub, source, target)
+        for source, target in sorted(set(desired_connections) - live_connections):
+            operation = Operation("create_connection", hub.system_id, f"{source}->{target}")
+            if not _run(report, operation, driver.create_connection, dry_run, hub.hub, source, target):
+                return report
+        for source, target in sorted(live_connections - set(desired_connections)):
+            operation = Operation("remove_connection", hub.system_id, f"{source}->{target}")
+            if not _run(report, operation, driver.remove_connection, dry_run, hub.hub, source, target):
+                return report
 
-    if report.operations:
+    if report.operations and report.status == "noop":
         report.status = "applied"
     return report
+
+
+def _run(report: ApplyReport, operation: Operation, method: Any, dry_run: bool, *args: Any) -> bool:
+    """Record an operation and run it; False means the apply must stop.
+
+    The method and its arguments are passed explicitly (no closures) so a dry
+    run and a real run share one code path. A failed write leaves the report
+    ``partial`` with a repair-ready issue: we never claim ``applied`` for work
+    that did not land (C-12, ADR-0012).
+    """
+    report.operations.append(operation)
+    if dry_run:
+        return True
+    try:
+        method(*args)
+    except DriverError as err:
+        report.issues.append(Issue(err.code, err.path or operation.name, str(err)))
+        report.status = "partial"
+        report.error = str(err)
+        return False
+    return True
 
 
 class InMemoryHaeoDriver:

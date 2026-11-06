@@ -17,5 +17,6 @@ Format: Context · Decision · Consequences · Rejected alternatives. New ADRs t
 | [ADR-0011](ADR-0011-product-rename-fleetassistant.md) | Product renamed to fleetassistant | accepted |
 | [ADR-0012](ADR-0012-unverified-facts-block-apply.md) | Unverified external facts block an apply | accepted |
 | [ADR-0013](ADR-0013-element-per-kind-mapping.md) | One HAEO element per profile kind; unmapped kinds block | proposed |
+| [ADR-0014](ADR-0014-flow-driven-provisioning.md) | Provision HAEO by answering its flows, never by writing its records | accepted |
 
-Next ADRs expected: license decision (D02, OQ-003), bridge mechanism (D04, OQ-009), Modbus access path (D06, OQ-013), fleet stack (D08).
+Next ADRs expected: license decision (D02, OQ-003), per-element field map (D04, OQ-017), Modbus access path (D06, OQ-013), fleet stack (D08).

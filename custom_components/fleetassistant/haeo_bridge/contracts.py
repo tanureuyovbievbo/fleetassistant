@@ -162,6 +162,18 @@ UNRESOLVED_KINDS: Final[frozenset[str]] = frozenset(
 #: the bridge carries them as declared inputs rather than writing guessed keys.
 INPUT_FIELD_NAMES_UNRESOLVED: Final = True
 
+#: Subentry types that are not topology elements. HAEO's hub flow creates a
+#: ``network`` subentry on hub creation; anything else HAEO adds on its own is
+#: unreported (OQ-018), and reading it must stay harmless.
+NON_ELEMENT_SUBENTRY_TYPES: Final[frozenset[str]] = frozenset({"network", "connection"})
+
+#: HAEO represents a link between two elements as a subentry of this type, but
+#: the field names that carry source/target are not recorded yet (OQ-017). While
+#: that is true, the flow driver refuses to create or diff connections instead
+#: of writing guessed keys into a live hub.
+CONNECTION_SUBENTRY_TYPE: Final = "connection"
+CONNECTION_FIELDS_UNRESOLVED: Final = True
+
 
 def is_known_element_type(haeo_type: str | None) -> bool:
     """Return True when ``haeo_type`` is a type HAEO v0.5.0 registers."""
@@ -206,6 +218,8 @@ __all__ = [
     "CONF_NAME",
     "CONF_RECORD_FORECASTS",
     "CONF_RELAX_INFEASIBLE",
+    "CONNECTION_FIELDS_UNRESOLVED",
+    "CONNECTION_SUBENTRY_TYPE",
     "CORE_INPUT_TYPES",
     "DEFAULT_DEBOUNCE_SECONDS",
     "DEFAULT_HORIZON_PRESET",
@@ -231,6 +245,7 @@ __all__ = [
     "HUB_SECTION_TIERS",
     "INPUT_FIELD_NAMES_UNRESOLVED",
     "INTEGRATION_TYPE_HUB",
+    "NON_ELEMENT_SUBENTRY_TYPES",
     "UNRESOLVED_KINDS",
     "VALUE_TYPE_CONSTANT",
     "VALUE_TYPE_ENTITY",

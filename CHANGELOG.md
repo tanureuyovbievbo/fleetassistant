@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- HAEO flow driver (`haeo_bridge/flows.py`) that provisions hubs, elements and
+  hub options by answering HAEO's config/options/subentry flows, plus its Home
+  Assistant port (`haeo_bridge/ha_port.py`) which is the only module touching `hass`
+  for HAEO writes. Live verification is still gated (`HA_PORT_LIVE_VERIFIED`).
+- `DriverError` with stable issue codes, apply status `partial`, and a driver
+  `preflight` hook so unsupported plans block before any write.
+
+
+### Added
 - e04 spike, source half: HAEO v0.5.0's configuration surface read from the pinned tag and recorded in `haeo_bridge/contracts.py`.
   - Hub creation data is sectioned (`common`/`advanced`) and its horizon is a tagged value (`{"value": "5_days"}` or `{"value": ["sensor.x"]}`); `relax_infeasible` is options-only and defaults to `False`.
   - Elements and connections are config **subentries** of the hub entry, not config entries. HAEO registers 13 element types; none is `meter`, `thermostat`, or `relay`.

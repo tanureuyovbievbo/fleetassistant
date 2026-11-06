@@ -40,6 +40,16 @@ This file holds verified technical facts about HAEO, Home Assistant, HACS, and v
 | F-029 | HAEO element form shows "policy pricing" fields for battery and load | `ELEMENT_SURFACED_PRICE_HINTS = {battery, load}` | S-015 | 2026-11-05 | verified (source) | D05, OQ-011 |
 | F-030 | HAEO element config fields are sectioned and type-specific | e.g. grid `power_limits` → `CONF_MAX_POWER_SOURCE_TARGET`; defaults live on `FieldHint`; optionality from `NotRequired` | S-016 | 2026-11-05 | verified (source; per-type key list still open) | D04, OQ-017 |
 
+| F-031 | Subentry flows are started in-process with `hass.config_entries.subentries.async_init((entry_id, subentry_type), context=SubentryFlowContext(source=SOURCE_USER))` and answered with `async_configure(flow_id, user_input)` | verified (source) | S-018, S-020 | 2026-11-05 | D04, OQ-016 |
+| F-032 | Subentry CRUD is `hass.config_entries.async_add_subentry(entry, subentry)` / `async_update_subentry(entry, subentry, data=..., title=..., unique_id=...)` / `async_remove_subentry(entry, subentry_id)`; entries expose `entry.subentries` and `entry.get_subentries_of_type(type)` | verified (source) | S-018, S-019 | 2026-11-05 | D04 |
+| F-033 | A subentry flow supports only the `user` and `reconfigure` steps and can reach its parent entry through `self._get_entry()`; `ConfigSubentry` carries `subentry_id`, `subentry_type`, `title`, `data`, `unique_id` | verified (source) | S-018 | 2026-11-05 | D04 |
+| F-034 | `POST /api/config/config_entries/flow` starts a config flow with `{"handler": "<domain>", "show_advanced_options": bool}`; `POST /api/config/config_entries/flow/{flow_id}` takes the **raw user-input dict as the body** (not wrapped); `GET` re-shows the step, `DELETE` aborts | verified (source) | S-019 | 2026-11-05 | D04, D08 |
+| F-035 | The options flow is `POST /api/config/config_entries/options/flow` with `{"handler": "<entry_id>"}`, then `POST .../options/flow/{flow_id}` with the user input | verified (source) | S-019 | 2026-11-05 | D04 |
+| F-036 | The subentry flow is `POST /api/config/config_entries/subentries/flow` with `{"handler": [entry_id, subentry_type], "show_advanced_options": bool}`, then `POST .../subentries/flow/{flow_id}` with the user input; passing `subentry_id` switches the flow context to `reconfigure` | verified (source) | S-019 | 2026-11-05 | D04, OQ-016 |
+| F-037 | Config entries are read with `GET /api/config/config_entries/entry?domain=<domain>` and managed with `DELETE /entry/{entry_id}` and `POST /entry/{entry_id}/reload`; every config-entry view requires an admin token | verified (source) | S-019 | 2026-11-05 | D04, D08 |
+| F-038 | The WebSocket API has `config_entries/get`, `config_entries/subentries/list`, `config_entries/subentries/update` (title only) and `config_entries/subentries/delete`; there is **no** command that creates a subentry | verified (source) | S-019 | 2026-11-05 | D04, D08, OQ-016 |
+| F-039 | HA 2026.1.1 is the Home Assistant version HAEO v0.5.0 declares in `hacs.json`, so it is the version the contract matrix pins | verified | S-002 | 2026-11-05 | D02, D04 |
+
 ## Brief claims still awaiting verification
 
 These claims appear in the brief. They are treated as **UNVERIFIED** until an F-ID exists for them.
