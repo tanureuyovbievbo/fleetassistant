@@ -24,6 +24,12 @@ class SiteRuntime:
     #: Merged tariffs keyed by price input name (``price_import``/``price_export``),
     #: published as forecast sensors for HAEO to read (ADR-0019).
     tariffs: dict[str, Any] = field(default_factory=dict)
+    #: Every entity the profile depends on (sensors, calendars), checked at setup.
+    references: tuple[Any, ...] = ()
+    #: One adapter per local-backed control element, keyed by element id.
+    adapters: dict[str, Any] = field(default_factory=dict)
+    #: Repairs raised for entity references, so they can be cleared on reload.
+    reference_repairs: list[str] = field(default_factory=list)
 
     @property
     def site_id(self) -> str:
@@ -49,6 +55,18 @@ class SiteRuntime:
             "price_authority": {name: tariff.authority for name, tariff in self.tariffs.items()},
             "price_provenance": {name: tariff.provenance for name, tariff in self.tariffs.items()},
             "price_warnings": [w for tariff in self.tariffs.values() for w in tariff.warnings],
+            "references": [
+                {"entity_id": r.entity_id, "requirement": r.requirement, "path": r.path} for r in self.references
+            ],
+            "control_adapters": {
+                element: {
+                    "adapter_id": adapter.adapter_id,
+                    "backing": adapter.backing,
+                    "capabilities": sorted(adapter.capabilities()),
+                    "last_written": dict(adapter.read_state()),
+                }
+                for element, adapter in self.adapters.items()
+            },
             "audit_records": len(self.audit),
             "audit_chain_valid": self.audit.verify(),
             "issues": [

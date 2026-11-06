@@ -19,6 +19,16 @@ All notable changes to this project are documented here. The format follows [Kee
   diagnostics now expose the last apply's operations and issues.
 
 ### Added
+- Setup-time verification of every entity a profile names (forecast sensors, price
+  entities, calendars, control entities, the HAEO horizon sensor) with error/warning
+  repairs instead of a plan that silently optimises against `unknown` (ADR-0020).
+- Local-backed control adapters: `number`/`climate`/`switch` bindings driven through
+  an injected service caller, so a gateway site can write export limits, battery
+  targets, charger amps, thermostat setpoints and shed circuits (ADR-0020).
+- `entity_id` and `scale` on profile controls, so a local control names the entity it
+  drives and can convert our unit into the entity's unit.
+
+### Added
 - Published price sensors: one sensor per price input (`price_import`, `price_export`),
   carrying the compiled series in a HAEO-shaped `forecast` attribute plus the
   provenance of every period (ADR-0019).

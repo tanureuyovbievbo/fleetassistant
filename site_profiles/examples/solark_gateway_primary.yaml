@@ -98,6 +98,7 @@ controls:
     backing: local
     authority: full
     fail_safe_value: 12.0
+    entity_id: number.solark_export_limit_kw
   - id: battery_target
     element: battery
     capability: set_battery_target
@@ -110,6 +111,8 @@ controls:
     backing: local
     authority: full
     fail_safe_value: 50.0
+    entity_id: number.eg4_battery_target_soc
+    scale: 1.0
   - id: ev_amps
     element: ev
     capability: set_charger_amps
@@ -122,6 +125,7 @@ controls:
     backing: local
     authority: full
     fail_safe_value: 16.0
+    entity_id: number.wallbox_max_amps
   - id: hvac_setpoint
     element: hvac
     capability: set_thermostat_setpoint

@@ -42,6 +42,7 @@ ALLOWED_CAPABILITIES: dict[str, tuple[str, ...]] = {
     "relay": ("shed_circuit",),
 }
 
+ENTITY_ID_RE = re.compile(r"^[a-z_]+\.[a-z0-9_]+$")
 CAPABILITY_UNITS = {
     "set_export_limit": "kW",
     "set_battery_target": "%",
@@ -454,7 +455,7 @@ def _validate_controls(
             "backing",
             "fail_safe_value",
         )
-        if not c.mapping(path, control, required, ("notes", "authority")):
+        if not c.mapping(path, control, required, ("notes", "authority", "entity_id", "scale")):
             continue
         cid = c.slug(f"{path}.id", control.get("id"))
         if cid is not None:
@@ -485,10 +486,23 @@ def _validate_controls(
         fs = c.number(f"{path}.fail_safe_value", control.get("fail_safe_value"))
         if fs is not None and lo is not None and hi is not None and not (lo <= fs <= hi):
             c.error("range", f"{path}.fail_safe_value", "must lie inside [min, max]")
+        backing = c.choice(f"{path}.backing", control.get("backing"), BACKINGS)
+        if "entity_id" in control:
+            # A local-backed control must name the Home Assistant entity it drives
+            # (adapters/ha_services.py); an api-backed one must not, because the
+            # vendor adapter owns its own addressing.
+            entity_id = c.text(f"{path}.entity_id", control.get("entity_id"), max_len=120)
+            if entity_id is not None and not ENTITY_ID_RE.match(entity_id):
+                c.error("entity_id", f"{path}.entity_id", f"{entity_id!r} is not an entity id")
+            if entity_id is not None and backing == "api":
+                c.warn("entity_id_unused", f"{path}.entity_id", "api-backed controls are addressed by the adapter, not by entity id")
+            if entity_id is None and backing == "local":
+                c.warn("entity_id_missing", f"{path}.entity_id", "local-backed control names no entity; it cannot be bound")
+        if "scale" in control:
+            c.number(f"{path}.scale", control.get("scale"), minimum=0.000001, maximum=1000000)
         c.number(f"{path}.rate_limit_per_minute", control.get("rate_limit_per_minute"), minimum=1, maximum=600)
         c.number(f"{path}.hysteresis", control.get("hysteresis"), minimum=0)
         c.boolean(f"{path}.consent_required", control.get("consent_required"))
-        backing = c.choice(f"{path}.backing", control.get("backing"), BACKINGS)
         authority = control.get("authority")
         if authority is None and deployment is not None:
             authority = AUTHORITY_BY_PROFILE[deployment]

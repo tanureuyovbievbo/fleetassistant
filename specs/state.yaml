@@ -6,8 +6,8 @@ domain: fleetassistant
 
 phase: build                     # discover | elaborate | plan | build | verify | release
 current:
-  epic: e05-price-target-model
-  deliverable: D05
+  epic: e06-control-adapters
+  deliverable: D06
   status: in-progress
   step: fix                    # context-check | draft | verify | review | fix | gate | accepted
 

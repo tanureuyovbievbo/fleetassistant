@@ -42,3 +42,6 @@ Rules for this file:
 
 A row that reaches its trigger **without** being reviewed is a defect against
 C-08/C-14/C-23, not a stale note.
+| RL-23 | `adapters/ha_services.py:HaServiceAdapter.read_state` | Read-back reports only what this adapter last wrote. The device's real state ("did the relay actually open?") needs the state machine, so a write that silently failed at the hardware level looks applied until the executor reads state. | First closed-loop control or telemetry capture | D06 / D07 |
+| RL-24 | `references.py:check_references` | A reference is checked once at setup. An entity that goes away later (renamed, integration removed) is only caught on the next reload; there is no subscription, no periodic re-check. | First site that renames an entity | D07 / D08 |
+| RL-25 | `adapters/ha_services.py` (`SwitchBinding`, `ClimateBinding`) | `SwitchBinding` treats "shed" as "turn off" and `ClimateBinding` converts °F→°C. Both are conventions, not verified vendor semantics: a heat-pump switch that is *on* when not shedding inverts the safety direction. | First relay or thermostat under contract | D06 |

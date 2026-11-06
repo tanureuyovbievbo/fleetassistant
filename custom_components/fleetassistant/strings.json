@@ -54,6 +54,14 @@
     "haeo_apply_incomplete": {
       "title": "HAEO provisioning incomplete",
       "description": "The plan was not fully written to HAEO: status `{status}`. {path}: {message} (`{code}`). Nothing in your home was changed; open the integration diagnostics for the operation list."
+    },
+    "entity_reference": {
+      "title": "fleetassistant needs an entity that is missing",
+      "description": "{code} at {path}: {message}. Create or fix that entity, then reload the {entry} integration. Until then the optimizer plans without it."
+    },
+    "control_unbound": {
+      "title": "fleetassistant cannot reach a control",
+      "description": "{path}: {message}. Add the entity id to that control in the site profile so the gateway can drive it."
     }
   }
 }

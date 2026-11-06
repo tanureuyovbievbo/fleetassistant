@@ -681,6 +681,15 @@
         },
         "notes": {
           "type": "string"
+        },
+        "entity_id": {
+          "type": "string",
+          "pattern": "^[a-z_]+\\.[a-z0-9_]+$"
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000
         }
       }
     }

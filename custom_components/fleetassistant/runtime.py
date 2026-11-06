@@ -14,15 +14,19 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
+from .adapters.ha_caller import service_caller
+from .adapters.ha_services import build_ha_adapters
 from .audit import AuditLog
 from .const import CONF_APPLY_HAEO_PLAN, DOMAIN, NAME
+from .haeo_bridge import contracts
 from .haeo_bridge.apply import ApplyReport, apply_plan
 from .haeo_bridge.flows import FlowHaeoDriver
 from .haeo_bridge.ha_port import HomeAssistantFlowPort
 from .haeo_bridge.plan import compile_plan
 from .haeo_bridge.prevalidate import prevalidate
-from .pricing.compiler import resolve_tariffs
+from .pricing.compiler import price_entity_id, resolve_tariffs
 from .profile.schema import Issue, validate_profile
+from .references import EntitySnapshot, check_references, collect_references, repair_key
 from .site import SiteRuntime
 
 
@@ -101,9 +105,104 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if runtime.tariffs:
         await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
 
+    _check_references(hass, entry, runtime)
+    _build_adapters(hass, entry, runtime)
+
     if entry.options.get(CONF_APPLY_HAEO_PLAN):
         await _apply_profile(hass, entry, runtime)
     return True
+
+
+def _published_price_ids(runtime: SiteRuntime) -> set[str]:
+    """Entity ids this integration creates itself (ADR-0019)."""
+    return {price_entity_id(runtime.site_id, name) for name in runtime.tariffs}
+
+
+def _check_references(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteRuntime) -> None:
+    """Verify every entity the profile names, and repair the ones that are absent.
+
+    A missing sensor does not fail setup: the site is otherwise usable, and the
+    repair tells the user exactly which entity to create or fix. Re-checking on
+    reload clears the repairs that no longer apply.
+    """
+    runtime.references = collect_references(runtime.profile, published=_published_price_ids(runtime))
+    issues = check_references(
+        runtime.references,
+        lambda entity_id: _snapshot(hass, entity_id),
+        min_forecast_points=contracts.FORECAST_MIN_BOUNDARIES,
+    )
+    runtime.issues.extend(issues)
+
+    wanted = {repair_key(reference) for reference in runtime.references}
+    for repair in set(runtime.reference_repairs) - wanted:
+        ir.async_delete_issue(hass, DOMAIN, f"{entry.entry_id}_{repair}")
+    runtime.reference_repairs = []
+
+    by_key: dict[str, list[Issue]] = {}
+    for issue in issues:
+        reference = next((r for r in runtime.references if r.path == issue.path), None)
+        if reference is None:
+            continue
+        by_key.setdefault(repair_key(reference), []).append(issue)
+
+    for key in wanted:
+        found = by_key.get(key)
+        if not found:
+            ir.async_delete_issue(hass, DOMAIN, f"{entry.entry_id}_{key}")
+            continue
+        first = found[0]
+        runtime.reference_repairs.append(key)
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            f"{entry.entry_id}_{key}",
+            is_fixable=False,
+            severity=ir.IssueSeverity.ERROR if first.is_error else ir.IssueSeverity.WARNING,
+            translation_key="entity_reference",
+            translation_placeholders={
+                "entry": NAME,
+                "code": first.code,
+                "path": first.path,
+                "message": first.message,
+            },
+        )
+
+
+def _snapshot(hass: HomeAssistant, entity_id: str) -> EntitySnapshot | None:
+    state = hass.states.get(entity_id)
+    if state is None:
+        return None
+    forecast = state.attributes.get(contracts.FORECAST_ATTRIBUTE) or []
+    points = len(forecast) if isinstance(forecast, (list, tuple)) else 0
+    unit = state.attributes.get("unit_of_measurement")
+    return EntitySnapshot(state=state.state, forecast_points=points, unit=unit)
+
+
+def _build_adapters(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteRuntime) -> None:
+    """Turn local-backed controls into adapters bound to their HA entities.
+
+    No write happens here: adapters are constructed so the executor has somewhere
+    to send a plan, and an unbound control becomes a repair instead of a crash.
+    """
+    runtime.adapters, issues = build_ha_adapters(runtime.profile, service_caller(hass))
+    runtime.issues.extend(issues)
+    for index, issue in enumerate(issues):
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            f"{entry.entry_id}_control_{index}",
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="control_unbound",
+            translation_placeholders={"entry": NAME, "path": issue.path, "message": issue.message},
+        )
+    runtime.audit.append(
+        "control.adapters",
+        {
+            "adapters": sorted(runtime.adapters),
+            "unbound": [f"{i.path}: {i.message}" for i in issues],
+        },
+    )
 
 
 async def _apply_profile(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteRuntime) -> None:

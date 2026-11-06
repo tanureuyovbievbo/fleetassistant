@@ -19,6 +19,11 @@ HA_MODULE_LEVEL_ALLOWED = {
     "sensor.py",  # entities are HA objects; the values they expose are computed in pricing/
 }
 
+#: Modules (beyond the package root) allowed to import Home Assistant: the HAEO
+#: bridge (it speaks HA's flow API) and the adapter glue that turns a capability
+#: into a service call. Everything else stays importable without HA, so tests run
+#: on a laptop and the core has no hidden lifecycle.
+HA_MODULE_LEVEL_ALLOWED_PATHS = {"adapters/ha_caller.py"}
 HA_IMPORT = re.compile(r"^\s*(?:from|import)\s+homeassistant\b", re.MULTILINE)
 HAEO_IMPORT = re.compile(r"^\s*(?:from|import)\s+(?:custom_components\.haeo|\.\.haeo)\b", re.MULTILINE)
 SERVICE_CALL = re.compile(r"services\.async_call\(")
@@ -56,7 +61,8 @@ def check_repo(root: Path) -> list[str]:
         if STORAGE_WRITE.search(text):
             violations.append(f"C-06: {rel} references .storage; HAEO storage is off-limits")
 
-        if HA_IMPORT.search(text) and rel.name not in HA_MODULE_LEVEL_ALLOWED and area != "haeo_bridge":
+        allowed_path = rel.as_posix() in HA_MODULE_LEVEL_ALLOWED_PATHS
+        if HA_IMPORT.search(text) and rel.name not in HA_MODULE_LEVEL_ALLOWED and not allowed_path and area != "haeo_bridge":
             violations.append(f"C-08: {rel} imports homeassistant at module level; keep core pure Python")
 
         if SERVICE_CALL.search(text) and area != "adapters":
