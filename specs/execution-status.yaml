@@ -4,7 +4,7 @@ updated: 2026-11-06
 epics:
   e00: { status: accepted, accepted_on: 2026-11-05, note: "bootstrap, docs only" }
   e01: { status: in-progress, note: "architecture spec drafted; rejected-alternatives section still to review" }
-  e02: { status: in-progress, note: "manifest/hacs.json/CI/release zip implemented; license decision (OQ-003) still blocks submission" }
+  e02: { status: in-progress, note: "manifest/hacs.json/CI/release zip implemented; license decided (ADR-0023, Apache-2.0) with LICENSE/NOTICE; HACS submission still needs a release tag and store review" }
   e03:
     status: in-progress
     note: "schema v1 + validator + 3 examples + 4 invalid fixtures implemented and tested; published JSON Schema synced by tests"

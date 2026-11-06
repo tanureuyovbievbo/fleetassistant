@@ -42,7 +42,7 @@ epics:
     title: HACS packaging spec
     depends_on: [e01]
     kind: design+scaffold
-    human_decision: OQ-003
+    human_decision: resolved (ADR-0023, Apache-2.0)
   - id: e03
     slug: e03-site-profile-schema
     deliverable: D03

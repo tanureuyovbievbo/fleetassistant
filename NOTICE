@@ -1,0 +1,25 @@
+fleetassistant
+Copyright 2026 ____________________________  (placeholder: copyright holder to be named)
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+The copyright holder above is a placeholder until the legal entity is chosen (RL-33).
+It composes, but does not vendor, the following upstream works at runtime:
+
+  Home Assistant Core and Frontend
+  Copyright the Home Assistant authors
+  Licensed under the Apache License, Version 2.0
+  https://github.com/home-assistant/core
+
+  HAEO (Home Assistant Energy Optimizer)
+  Copyright the HAEO authors
+  Licensed under the MIT License
+  https://github.com/hass-energy/haeo
+
+No Home Assistant, HAEO, HAOS, Supervisor, or HACS source is copied into this
+repository. Home Assistant is a trademark of the Home Assistant project; this
+project is not affiliated with, endorsed by, or certified by that project, Nabu
+Casa, the OpenADR Alliance, the California Energy Commission, or any ISO/RTO.
+
+Device integrations installed by a user carry their own licences. A device pack
+records the licence and terms of the integration it binds; a GPL-3 integration
+must be audited before it is used in a paid fleet (C-19).

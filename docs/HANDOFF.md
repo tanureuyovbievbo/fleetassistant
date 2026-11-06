@@ -16,7 +16,7 @@
 
 ## 2. Before any work
 - [ ] Commit the bootstrap (it is uncommitted). Suggested message: `docs: bootstrap fleetassistant planning, specs, and agent harness`.
-- [ ] Ask the human for the pending decisions in `specs/state.yaml` (`human_decisions_pending`): OQ-003 (license) and SPIKE-PULL-AHEAD.
+- [ ] Ask the human for the pending decisions in `specs/state.yaml` (`human_decisions_pending`): SPIKE-LIVE-ACCESS, OQ-019 (meter/thermostat/relay carriers), OQ-023 (brand packs), and the telemetry collector endpoint (RL-30). Licence is settled: Apache-2.0 (ADR-0023).
 
 ## 3. Execution order
 | # | Work | Command | Stop? |

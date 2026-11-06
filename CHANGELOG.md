@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- **Licence decided: Apache-2.0** (ADR-0023, closes OQ-003). `LICENSE` is the
+  canonical Apache-2.0 text, `NOTICE` names Home Assistant (Apache-2.0) and HAEO
+  (MIT) and states the absence of affiliation, `pyproject.toml` declares
+  `license = "Apache-2.0"`, and `tests/unit/test_licensing.py` guards the text,
+  the NOTICE, the no-affiliation claim, and that nothing upstream is vendored.
+  The copyright holder is a deliberate blank placeholder and `LICENSE` carries a
+  removable edit-later note (RL-33). The hosted fleet stays closed: Apache-2.0 has
+  no network-service clause.
+- Telemetry transport (`telemetry/transport.py`): `HttpSink`, `MqttSink`, a
+  bounded `Spool` that drops the oldest envelope, and a `TelemetryPublisher` that
+  validates every payload before sending, falls through sinks, spools failures,
+  drains on the next cycle and reports depth. Runtime still builds no publisher
+  (RL-30: no collector endpoint or credentials).
 - Telemetry producer (`telemetry/producer.py`): envelopes are grouped per
   `(quality, source, authority)` so a commanded setpoint is never laundered into a
   measured value; dispatch rejections become flags, never zero metrics.

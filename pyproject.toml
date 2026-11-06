@@ -1,3 +1,11 @@
+[project]
+name = "fleetassistant"
+version = "0.1.0"
+description = "Open site-level DERMS that composes HAEO inside Home Assistant"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.12"
+
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]

@@ -93,6 +93,8 @@ Each constraint has a **Check**. The reviewer agent applies the check (see `.pi/
 ## Legal, brand, honesty
 
 ### C-19 — Licensing hygiene
+
+*Settled 2026-11-06: this repository is Apache-2.0 (ADR-0023).*
 - **Rule:** Respect upstream licenses: HA Core/Frontend Apache-2.0; HAOS/Supervisor/CLI GPL-3; HAEO MIT. Audit every community device integration's license before it enters a paid fleet.
 - **Check:** D02 records the license decision. `docs/verification/LICENSE_AUDIT.md` (created in D08) lists each third-party integration and its license.
 

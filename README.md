@@ -52,4 +52,8 @@ There are two deployment profiles. Both run the same product:
 
 ## Licensing notes
 
-The license for this repository is **not yet decided**. It is a decision in deliverable D02 (see [OQ-003](docs/verification/OPEN_QUESTIONS.md)). Upstream licenses to respect: HA Core and Frontend are Apache-2.0. HAOS, Supervisor, and CLI are GPL-3. HAEO is MIT. Community device integrations vary and need a per-integration audit before use in a paid fleet.
+This repository is **Apache-2.0** ([ADR-0023](specs/adr/ADR-0023-apache-2-0-license.md)); the hosted fleet services stay closed, because Apache-2.0 imposes no source-release duty on a network service. [LICENSE](LICENSE) is the canonical text and [NOTICE](NOTICE) names the works we compose.
+
+Upstream licenses to respect: HA Core and Frontend are Apache-2.0. HAOS, Supervisor, and CLI are GPL-3 — shipping a modified appliance triggers source availability for those components. HAEO is MIT and is not relicensed here. Community device integrations vary and need a per-integration audit before use in a paid fleet; a device pack must record the integration's licence and terms.
+
+Nothing from Home Assistant, HAEO, HAOS, Supervisor, or HACS is vendored into this repository; `tests/unit/test_licensing.py` checks that and checks the NOTICE.

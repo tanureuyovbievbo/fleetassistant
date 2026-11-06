@@ -10,7 +10,7 @@
 | Last updated | 2026-11-05 |
 | Depends on | D01, C-02, C-03, C-05, C-08, C-19, C-20, F-006, F-010, F-013, F-014, OQ-001, OQ-003, OQ-004, OQ-008, OQ-010 |
 
-> **Implementation:** manifest.json, hacs.json, CI, and release zip exist; HACS submission is blocked on OQ-003 (license).
+> **Implementation:** manifest.json, hacs.json, CI, and release zip exist. License decided 2026-11-06: **Apache-2.0** (ADR-0023) with `LICENSE`, `NOTICE`, and `tests/unit/test_licensing.py`; the HACS submission checklist is now blocked only on a release tag and store review.
 >
 > The outline below remains the acceptance contract; code lands against it.
 >
@@ -27,7 +27,17 @@
 7. **Release and zip mechanics.** Versioning (SemVer, tag `vX.Y.Z`), GitHub Actions workflow outline (lint, test, hassfest, HACS action, build zip, attach to release), and a changelog policy.
 8. **HACS store submission checklist.** Each item cites the HACS docs (fetched).
 9. **Brand and naming.** Brand asset policy (C-20) and the domain collision check (C-03).
-10. **License decision.** Options, consequences for the fleet cloud, and GPL-3 exposure when shipping a modified HAOS appliance (C-19). Recommend one option. **A human decides (OQ-003).**
+10. **License decision (resolved).** Apache-2.0 for the repository (ADR-0023), decided by the human on 2026-11-06.
+    - Why: §3 patent grant with retaliation and §5 inbound=outbound contributions are what utility procurement and
+      an acquirer read; MIT is silent on both.
+    - Fleet cloud: Apache-2.0 has no network-service clause, so the multi-tenant services stay closed. AGPL-3.0 was
+      rejected for exactly that reason.
+    - HAEO stays MIT (one-way compatible; reproduced in `NOTICE`); no HA/HACS/HAEO source is vendored, so §4(b)
+      "modified file" markers apply to nothing.
+    - GPL-3 exposure when shipping a modified HAOS appliance is unchanged (C-19): source availability applies to
+      HAOS/Supervisor/CLI, not to this repository.
+    - Enforced by `tests/unit/test_licensing.py` (licence text, NOTICE contents, no affiliation claim, pyproject
+      agreement, no vendored upstream source, device-pack licence fields).
 11. Open questions · Constraint compliance · Change log.
 
 ## Acceptance criteria

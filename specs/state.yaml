@@ -108,14 +108,24 @@ implemented:
     entry: docs/updates/2026-11-05-code-increment-1.md
 
 human_decisions_pending:
-  - id: OQ-003
-    topic: License for integration and fleet cloud
-    needed_by: D02 gate
   - id: SPIKE-LIVE-ACCESS
     topic: Provide a live HA + HAEO v0.5.0 instance (or run the haeo-contract workflow) so OQ-002/OQ-006/OQ-016/OQ-017/OQ-018/OQ-019 can close
     needed_by: e04 acceptance
 
+last_session:
+  date: 2026-11-06
+  entry: docs/updates/2026-11-06-license.md
+  summary: >
+    Licence settled by the human: Apache-2.0 (ADR-0023) with LICENSE, NOTICE,
+    pyproject declaration and tests/unit/test_licensing.py; OQ-003 removed from
+    human_decisions_pending. Copyright holder left blank (RL-33). 315 tests passing.
+
 decisions:
+  - id: ADR-0023
+    date: 2026-11-06
+    title: Apache-2.0 for this repository; the hosted fleet stays closed
+    why: patent grant plus contribution clause matter for utility buyers; no network clause, so no source-release duty for the fleet; HAEO stays MIT and is not relicensed
+    entry: specs/adr/ADR-0023-apache-2-0-license.md
   - id: ADR-0017
     date: 2026-11-06
     status: accepted
