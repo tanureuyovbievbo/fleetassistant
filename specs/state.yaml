@@ -6,22 +6,35 @@ domain: fleetassistant
 
 phase: build                     # discover | elaborate | plan | build | verify | release
 current:
-  epic: e06-control-adapters
-  deliverable: D06
+  epic: e07-telemetry-schema
+  deliverable: D07
   status: in-progress
-  step: fix                    # context-check | draft | verify | review | fix | gate | accepted
+  step: verify                 # context-check | draft | verify | review | fix | gate | accepted
 
 next_action: >
-  The control path is closed end to end: controls bind to real entities, every
-  reference is checked at setup, and a fresh plan is dispatched through the safety
-  pipeline while silence fails safe once (ADR-0021). What is still missing is the
-  feedback half — nothing publishes telemetry, so a dispatch sequence is auditable in
-  the local log and invisible to the fleet (D07/e07, RL-27). Next concrete step: the
-  telemetry publisher that turns dispatch outcomes, HAEO plan values and read-back
-  into envelope-v1 records on a cadence, with the source authority rule (gateway >
-  vendor cloud) enforced in code and the payload validated before it leaves the box.
+  Everything that does not need a human decision or a live Home Assistant + HAEO
+  instance is now implemented: telemetry producer, device-pack schema, the
+  commitments guard in the dispatch path, price/reference repairs, fleet
+  allocation math, the offline preflight tool and the version matrix. The next
+  step cannot be automated away: run `pytest -m live` against HA 2026.1.1 + HAEO
+  v0.5.0 (`.github/workflows/haeo-contract.yml`) and, when the three
+  `xfail(strict=True)` contract tests begin failing, flip
+  `HAEO_SURFACE_LIVE_VERIFIED`, `ELEMENT_FIELDS_LIVE_VERIFIED` and
+  `HA_PORT_LIVE_VERIFIED` in one commit. After that, publish the producer's
+  envelopes (RL-30) and decide the meter/thermostat/relay carriers (OQ-019).
 
 implemented:
+  - date: 2026-11-06
+    summary: >
+      Offline completion increment: telemetry producer (one envelope per
+      quality/source/authority so a command is never reported as a measurement),
+      data-only device packs with cloud-cannot-be-full-authority validation (ADR-0022),
+      the commitments guard refusing a double-booked dispatch before any device write,
+      divergence/degraded price repairs (RL-22 closed) and state-subscribed reference
+      re-checks (RL-24 closed), merit-order fleet allocation with simultaneity and
+      feedback trim, an offline preflight CLI, and the D08 version matrix. 288 tests
+      pass. Open: live verification gate, RL-29..RL-32.
+    entry: docs/updates/2026-11-06-offline-completion.md
   - date: 2026-11-06
     summary: >
       Dispatch loop (ADR-0021): a fresh plan (<= 15 min) is applied through the safety

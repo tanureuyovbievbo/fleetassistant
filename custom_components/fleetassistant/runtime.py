@@ -15,7 +15,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 from homeassistant.util import dt as dt_util
 
 from .adapters.ha_caller import service_caller
@@ -120,12 +120,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
 
     _check_references(hass, entry, runtime)
+    _watch_references(hass, entry, runtime)
+    _publish_price_repairs(hass, entry, runtime)
     _build_adapters(hass, entry, runtime)
     _start_dispatch(hass, entry, runtime)
 
     if entry.options.get(CONF_APPLY_HAEO_PLAN):
         await _apply_profile(hass, entry, runtime)
     return True
+
+
+_REFERENCE_CODES = frozenset({"entity_missing", "entity_unavailable", "entity_no_forecast", "calendar_domain_mismatch"})
 
 
 def _published_price_ids(runtime: SiteRuntime) -> set[str]:
@@ -181,6 +186,87 @@ def _check_references(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteRunt
                 "message": first.message,
             },
         )
+
+
+def _watch_references(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteRuntime) -> None:
+    """Re-check references when one of them changes (RL-24).
+
+    The setup check runs once. A sensor that exists at setup and goes away ten
+    minutes later would otherwise stay silent until a restart.
+    """
+    entity_ids = sorted({reference.entity_id for reference in runtime.references})
+    if not entity_ids:
+        return
+    wanted = set(entity_ids)
+
+    @callback
+    def _on_state_change(event: Any) -> None:
+        if event.data.get("entity_id") not in wanted:
+            return
+        runtime.issues = [issue for issue in runtime.issues if issue.code not in _REFERENCE_CODES]
+        _check_references(hass, entry, runtime)
+
+    runtime.references_unsub = async_track_state_change_event(hass, entity_ids, _on_state_change)
+
+
+def _publish_price_repairs(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteRuntime) -> None:
+    """Two price sources disagreeing is a decision someone must make (RL-22)."""
+    divergences = [(name, tariff) for name, tariff in runtime.tariffs.items() if tariff.divergences]
+    if not divergences:
+        ir.async_delete_issue(hass, DOMAIN, f"{entry.entry_id}_price_divergence")
+        for name in runtime.tariffs:
+            ir.async_delete_issue(hass, DOMAIN, f"{entry.entry_id}_price_degraded_{name}")
+        return
+
+    name, tariff = divergences[0]
+    worst = max(tariff.divergences, key=lambda item: abs(item.delta))
+    runtime.audit.append(
+        "price.divergence",
+        {
+            "input": name,
+            "authority": tariff.authority,
+            "periods": len(tariff.divergences),
+            "worst": {"at": worst.ts.isoformat(), "cloud": worst.cloud, "user": worst.user, "chosen": worst.chosen},
+        },
+    )
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        f"{entry.entry_id}_price_divergence",
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key="price_divergence",
+        translation_placeholders={
+            "entry": NAME,
+            "input": name,
+            "periods": str(len(tariff.divergences)),
+            "authority": tariff.authority,
+            "at": worst.ts.isoformat(),
+            "cloud": f"{worst.cloud:.4f}",
+            "user": f"{worst.user:.4f}",
+            "chosen": f"{worst.chosen:.4f}",
+        },
+    )
+
+    for other, other_tariff in runtime.tariffs.items():
+        key = f"{entry.entry_id}_price_degraded_{other}"
+        if other_tariff.stale or other_tariff.missing:
+            ir.async_create_issue(
+                hass,
+                DOMAIN,
+                key,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="price_degraded",
+                translation_placeholders={
+                    "entry": NAME,
+                    "input": other,
+                    "stale": str(len(other_tariff.stale)),
+                    "missing": str(len(other_tariff.missing)),
+                },
+            )
+        else:
+            ir.async_delete_issue(hass, DOMAIN, key)
 
 
 def _snapshot(hass: HomeAssistant, entity_id: str) -> EntitySnapshot | None:
@@ -344,9 +430,10 @@ async def _apply_profile(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteR
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     if runtime is not None:
-        unsub = getattr(runtime, "dispatch_unsub", None)
-        if unsub is not None:
-            unsub()
+        for attribute in ("dispatch_unsub", "references_unsub"):
+            unsub = getattr(runtime, attribute, None)
+            if unsub is not None:
+                unsub()
         dispatcher = getattr(runtime, "dispatcher", None)
         if dispatcher is not None:
             # Leaving devices at the optimizer's last instruction while we go away

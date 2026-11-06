@@ -70,3 +70,40 @@ def test_remove_returns_the_commitment() -> None:
     assert ledger.remove("a").commitment_id == "a"
     with pytest.raises(LedgerError):
         ledger.remove("a")
+
+
+def test_two_programs_cannot_hold_the_same_capability_over_the_same_window():
+    now = datetime(2026, 11, 6, 18, 0, tzinfo=UTC)
+    ledger = CommitmentsLedger("site_a", 10.0)
+    ledger.add(Commitment("c1", "elrp", now, now + timedelta(hours=1), 4.0, "full", capability="set_export_limit"))
+
+    conflicts = ledger.conflicts(program_id="vpp", start=now, end=now + timedelta(minutes=30), capability="set_export_limit")
+
+    assert [c.program_id for c in conflicts] == ["elrp"]
+
+
+def test_the_same_program_may_refresh_its_own_window():
+    now = datetime(2026, 11, 6, 18, 0, tzinfo=UTC)
+    ledger = CommitmentsLedger("site_a", 10.0)
+    ledger.add(Commitment("c1", "elrp", now, now + timedelta(hours=1), 4.0, "full", capability="set_export_limit"))
+
+    assert ledger.conflicts(program_id="elrp", start=now, end=now + timedelta(hours=1), capability="set_export_limit") == []
+
+
+def test_a_different_capability_is_not_a_conflict():
+    now = datetime(2026, 11, 6, 18, 0, tzinfo=UTC)
+    ledger = CommitmentsLedger("site_a", 10.0)
+    ledger.add(Commitment("c1", "elrp", now, now + timedelta(hours=1), 4.0, "full", capability="set_export_limit"))
+
+    assert ledger.conflicts(program_id="vpp", start=now, end=now + timedelta(hours=1), capability="set_battery_target") == []
+
+
+def test_headroom_shrinks_as_exposure_grows():
+    now = datetime(2026, 11, 6, 18, 0, tzinfo=UTC)
+    ledger = CommitmentsLedger("site_a", 10.0)
+    ledger.add(Commitment("c1", "elrp", now, now + timedelta(hours=1), 4.0, "full"))
+
+    assert ledger.headroom(now, now + timedelta(minutes=30)) == 6.0
+    ledger.add(Commitment("c2", "vpp", now, now + timedelta(minutes=30), 6.0, "full"))
+    assert ledger.headroom(now, now + timedelta(minutes=15)) == 0.0
+

@@ -8,6 +8,12 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = REPO_ROOT / "site_profiles" / "examples"
+DEVICE_PACKS = REPO_ROOT / "device_packs"
+
+
+def repo_root() -> Path:
+    """The repository root, for tests that read shipped data files."""
+    return REPO_ROOT
 
 
 def example(name: str) -> dict[str, Any]:

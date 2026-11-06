@@ -29,6 +29,10 @@ class Commitment:
     kw: float
     authority: Authority
     tier: Literal["firm", "best_effort"] = "best_effort"
+    #: The capability this commitment buys (``set_export_limit``, ``set_battery_target``).
+    #: Two programs must never hold the same capability over the same window — that is
+    #: the double-counting this ledger exists to prevent (C-16).
+    capability: str = ""
 
     def __post_init__(self) -> None:
         if self.end <= self.start:
@@ -79,6 +83,33 @@ class CommitmentsLedger:
     def committed_programs(self) -> set[str]:
         return {c.program_id for c in self.commitments}
 
+    def conflicts(
+        self,
+        *,
+        program_id: str,
+        start: datetime,
+        end: datetime,
+        capability: str,
+    ) -> list[Commitment]:
+        """Commitments held by *another* program for the same capability and window.
+
+        Empty means this program may dispatch that capability over that window.
+        A non-empty result is a structural double-booking, not a judgment call:
+        two programs paying for the same kilowatt is the failure mode C-16 names.
+        """
+        window = Commitment("window", "window", start, end, 1.0, "coarse", capability=capability)
+        return [
+            c
+            for c in self.commitments
+            if c.program_id != program_id
+            and (not capability or c.capability == capability)
+            and c.overlap(window) is not None
+        ]
+
+    def headroom(self, start: datetime, end: datetime) -> float:
+        """Qualified capacity minus simultaneous exposure over the window."""
+        return max(0.0, self.qualified_capacity_kw - self.exposure(start, end))
+
     def as_list(self) -> list[dict[str, object]]:
         return [
             {
@@ -89,6 +120,7 @@ class CommitmentsLedger:
                 "kw": c.kw,
                 "authority": c.authority,
                 "tier": c.tier,
+                "capability": c.capability,
             }
             for c in self.commitments
         ]

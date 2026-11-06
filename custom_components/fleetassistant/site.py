@@ -31,6 +31,7 @@ class SiteRuntime:
     adapters: dict[str, Any] = field(default_factory=dict)
     #: Repairs raised for entity references, so they can be cleared on reload.
     reference_repairs: list[str] = field(default_factory=list)
+    references_unsub: Any = None
     #: Consent, clamping, rate limits and hysteresis in front of every adapter.
     safety: Any = None
     #: The dispatch loop, when the site enabled it.

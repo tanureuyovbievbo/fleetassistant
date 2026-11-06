@@ -5,6 +5,29 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Telemetry producer (`telemetry/producer.py`): envelopes are grouped per
+  `(quality, source, authority)` so a commanded setpoint is never laundered into a
+  measured value; dispatch rejections become flags, never zero metrics.
+- Device packs (`device_packs/`, ADR-0022): data-only brand contracts with a
+  per-capability entity binding and safety envelope. A cloud integration binding
+  full authority is an error; an unverified or unsourced pack says so in the
+  issue list.
+- Commitments ledger wired into dispatch: `CommitmentsLedger.conflicts()` /
+  `headroom()` and `Dispatcher._conflict()` refuse a dispatch that would deliver a
+  capability another program already holds, audit it as `dispatch.refused`, and
+  leave the devices untouched.
+- Price repairs: `price_divergence` (worst period, both values, chosen value) and
+  `price_degraded` (stale, fallback and missing period counts) (closes RL-22).
+- Reference re-check: referenced entities are subscribed and re-validated on every
+  state change (closes RL-24).
+- Fleet allocation (`fleet/allocation.py`): merit order with availability,
+  opt-out, comfort reserve, battery-life and share caps, simultaneous capacity from
+  declared windows, `dispatch_delta` with hysteresis, bounded `feedback_trim`.
+- `tools/preflight.py`: offline validate → compile → prevalidate → tariffs →
+  references, human or JSON output, exit code 1 when blocked.
+- `docs/ops/VERSION_MATRIX.md`: HA × HAEO × integration pins, the one (unverified)
+  supported combination, the procedure that verifies it, and the per-tenant
+  rollback table (D08 item 4).
 - Dispatch loop (`dispatch.py`, ADR-0021): a plan older than 15 minutes is
   discarded, 30 minutes of optimizer silence writes the per-capability fail-safe
   **once** per outage, a good plan clears the lockout, and unloading the entry
@@ -117,7 +140,7 @@ All notable changes to this project are documented here. The format follows [Kee
   - `adapters/` — capability descriptors (limits, rate limit, hysteresis, consent, backing, authority, fail-safe), safety pipeline, and API-backed plus Modbus-backed stub adapters behind one contract.
   - `executor.py`, `audit.py`, `ledger.py`, `telemetry.py` — plan execution with staleness and fail-safe, SHA-256 hash-chained audit log, commitments ledger that rejects over-commitment, telemetry envelope v1 with dedupe and firm/estimated separation.
   - Home Assistant glue: `config_flow.py` (config + options), `runtime.py` (repairs on validation failure), `manifest.json` with zero pip requirements, `hacs.json`.
-- Tests: 136 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, element field table and connectivity, flow driver against a fake port, pricing, adapters, executor, ledger, telemetry, boundary probes).
+- Tests: 288 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, element field table and connectivity, flow driver against a fake port, pricing, adapters, executor, ledger, telemetry, boundary probes).
 - CI: `ci.yml` (ruff, boundary probes, pytest, hassfest, HACS validation, manifest pin check), `release.yml` (zip + release), `haeo-contract.yml` (manual live-HAEO contract run).
 
 ### Added

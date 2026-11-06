@@ -5,12 +5,31 @@
 | ID | D08 |
 | Epic | e08-fleet-services |
 | Version | 0.0.0 (stub) |
-| Status | not-started |
+| Status | in-progress (version matrix written; tenancy/provisioning/orchestration open) |
 | Owner role | architect (spec) → engineer (scaffolding) |
-| Last updated | 2026-11-05 |
+| Last updated | 2026-11-06 |
 | Depends on | D01–D07, C-01, C-11, C-12, C-17, C-18, C-19, C-20, ADR-0001, ADR-0009, OQ-009, OQ-015 |
 
-> **Stub.** Required outline and acceptance criteria only.
+> **In progress.** The outline below is the spec skeleton. Item 4 (OTA and version
+> matrix) now has an implementation document: [`docs/ops/VERSION_MATRIX.md`](../ops/VERSION_MATRIX.md),
+> which records the single supported HA × HAEO × fleetassistant combination, the
+> procedure that turns an unverified combination into a supported one, and the
+> per-tenant rollback table. Everything else in this deliverable is still outline:
+
+## Implementation notes
+
+- **Version matrix (item 4).** `docs/ops/VERSION_MATRIX.md` pins the layers and
+  says where each pin lives (`hacs.json`, `SUPPORTED_HAEO_VERSIONS`,
+  `manifest.json`, a pack's `integration.domain`). The only row so far is marked
+  UNVERIFIED because no live instance has run; the `xfail(strict=True)` contract
+  tests are the tripwire that flips it.
+- **Rollback (item 4).** Rollback is per tenant and per layer: HAEO pin, image
+  tag, integration release zip. The site profile lives outside the integration,
+  so a rollback never re-onboards a site (C-10).
+- **Not started:** tenancy/identity (item 1), headless provisioning sequence
+  (item 2), WireGuard topology (item 3), per-stack contract matrix (item 5),
+  observability SLOs (item 6), compute math (item 7, blocked on OQ-015), the
+  licence audit (item 8, blocked on OQ-003/OQ-023).
 
 ## Required outline
 
@@ -30,5 +49,5 @@
 - [ ] No design places two tenants in one HA process.
 - [ ] No inbound ports. No shared admin tokens.
 - [ ] Compute math uses only measured or cited numbers.
-- [ ] A rollback path exists for every OTA ring.
+- [x] A rollback path exists for every OTA ring (per-layer, per-tenant; `docs/ops/VERSION_MATRIX.md`).
 - [ ] Human review gate passed.

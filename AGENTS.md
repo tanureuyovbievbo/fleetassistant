@@ -95,3 +95,4 @@ Canonical instructions for any AI coding agent working in this repository. This 
 | 2026-11-06 | Entity-reference checks + local control adapters | `references.py`, `adapters/{ha_services,ha_caller}.py`, `runtime.py` | ADR-0020, RL-23..RL-25 |
 | 2026-11-06 | Dispatch loop + fail-safe-once + state-machine read-back | `dispatch.py`, `runtime.py`, `site.py`, `adapters/ha_services.py` | ADR-0021, RL-26..RL-28 |
 | 2026-11-06 | Device packs: HA integrations are the transport, brands are data | `specs/adr/ADR-0022-device-packs-over-vendor-clients.md`, `docs/verification/OPEN_QUESTIONS.md` | ADR-0022, OQ-023 |
+| 2026-11-06 | Completed every offline step: telemetry producer, device-pack loader, commitments guard in dispatch, price/reference repairs, fleet allocation, preflight CLI, version matrix | `docs/updates/2026-11-06-offline-completion.md`, `docs/ops/VERSION_MATRIX.md` | 288 tests; remaining work needs a live instance or a human decision |

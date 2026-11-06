@@ -67,6 +67,14 @@
     "dispatch_failed_safe": {
       "title": "fleetassistant fell back to safe defaults",
       "description": "The {entry} site stopped receiving usable plans ({reason}) and its controls were set to their fail-safe values. Check the optimizer and the connection; dispatch resumes when a fresh plan arrives."
+    },
+    "price_divergence": {
+      "title": "Two price sources disagree",
+      "description": "The {input} forecast for {entry} has {periods} period(s) where the cloud and user tariffs differ. The {authority} authority chose one; the worst period at {at} was cloud {cloud} vs user {user}, and {chosen} was used. Change the price authority if this is the wrong choice."
+    },
+    "price_degraded": {
+      "title": "Price forecast is incomplete",
+      "description": "The {input} forecast for {entry} has {stale} stale and {missing} unpriced period(s). Those periods cannot support a firm performance claim."
     }
   }
 }

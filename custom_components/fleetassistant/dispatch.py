@@ -27,6 +27,7 @@ from typing import Any, Literal, Protocol
 
 from .audit import AuditLog
 from .executor import ExecutionPlan, ExecutionReport, Executor, Setpoint
+from .ledger import CommitmentsLedger
 
 DispatchAction = Literal["applied", "failed_safe", "idle", "rejected"]
 
@@ -139,6 +140,11 @@ class Dispatcher:
     max_plan_age: timedelta = DEFAULT_MAX_PLAN_AGE
     fail_safe_after: timedelta = DEFAULT_FAIL_SAFE_AFTER
     valid_for: timedelta | None = None
+    #: When set, a plan is refused if another program already holds the same
+    #: capability over the plan's window (C-16). Dispatching a capability twice is
+    #: how a site gets paid twice for one kilowatt, so it is a refusal, not a warning.
+    ledger: CommitmentsLedger | None = None
+    program_id: str = ""
     last_applied_at: datetime | None = None
     failed_safe_at: datetime | None = None
     ticks: int = 0
@@ -156,7 +162,16 @@ class Dispatcher:
         if age > self.max_plan_age:
             return self._outage(f"plan is {age.total_seconds():.0f}s old (max {self.max_plan_age.total_seconds():.0f}s)", now)
 
-        plan = snapshot.to_plan(valid_for=self.valid_for or self.max_plan_age)
+        window = self.valid_for or self.max_plan_age
+        conflict = self._conflict(snapshot, now, window)
+        if conflict is not None:
+            self.audit.append(
+                "dispatch.refused",
+                {"plan_id": snapshot.plan_id, "reason": conflict, "program_id": self.program_id},
+            )
+            return DispatchOutcome(action="rejected", reason=conflict, plan_id=snapshot.plan_id, plan_age_seconds=age.total_seconds())
+
+        plan = snapshot.to_plan(valid_for=window)
         report = self.executor.apply(plan, now)
         self.last_applied_at = now
         self.failed_safe_at = None
@@ -178,6 +193,19 @@ class Dispatcher:
             },
         )
         return outcome
+
+    def _conflict(self, snapshot: PlanSnapshot, now: datetime, window: timedelta) -> str | None:
+        if self.ledger is None or not self.program_id:
+            return None
+        capabilities = sorted({setpoint.capability for setpoint in snapshot.setpoints})
+        for capability in capabilities:
+            held = self.ledger.conflicts(
+                program_id=self.program_id, start=now, end=now + window, capability=capability
+            )
+            if held:
+                programs = ", ".join(sorted({commitment.program_id for commitment in held}))
+                return f"double_booked: {capability} is already committed to {programs}"
+        return None
 
     def fail_safe_once(self, *, now: datetime, reason: str) -> DispatchOutcome:
         """Force the fail-safe on demand (unload, manual action), at most once."""

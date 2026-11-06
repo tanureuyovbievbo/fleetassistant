@@ -83,6 +83,9 @@ class Issue:
     def is_error(self) -> bool:
         return self.severity == "error"
 
+    def as_dict(self) -> dict[str, str]:
+        return {"code": self.code, "path": self.path, "message": self.message, "severity": self.severity}
+
     def __str__(self) -> str:  # pragma: no cover - convenience
         return f"[{self.code}] {self.path}: {self.message}"
 

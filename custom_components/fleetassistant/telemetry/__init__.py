@@ -12,8 +12,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from .const import TELEMETRY_SCHEMA_VERSION
-from .profile.schema import Issue
+from ..const import TELEMETRY_SCHEMA_VERSION
+from ..profile.schema import Issue
 
 QUALITIES = ("measured", "estimated", "stale", "missing")
 AUTHORITIES = ("coarse", "full")

@@ -31,7 +31,7 @@ epics:
     note: "providers, overlays, compiler, degradation term implemented; HAEO representation unverified (OQ-012)"
   e06:
     status: in-progress
-    note: "interface, safety pipeline, stubs, HA-entity adapters, read-back and the dispatch loop implemented (ADR-0021); vendor adapters and set_charging_schedule not started"
+    note: "interface, safety pipeline, stubs, HA-entity adapters, device packs, read-back, dispatch loop and the commitments guard implemented (ADR-0021/ADR-0022); vendor packs and set_charging_schedule not started"
     stories:
       S1-interface: { status: done }
       S2-safety: { status: done, note: "consent → clamp → consent-gated rate limit → hysteresis → adapter (order recorded in ADR-0020)" }
@@ -39,12 +39,21 @@ epics:
       S4-ha-adapters: { status: done, note: "switch/number/climate bindings; unsupported capability refused at construction" }
       S5-readback: { status: partial, note: "reads the state machine; no timestamp or quality flag (RL-27)" }
       S6-dispatch: { status: done, note: "fresh-plan window, grace period, fail-safe once, unload forces fallback (ADR-0021)" }
+      S8-commitments: { status: done, note: "dispatch refuses a capability another program holds; audited as dispatch.refused" }
+      S9-device-packs: { status: partial, note: "schema, loader, validation and an unverified example pack; no brand pack is verified (OQ-023)" }
       S7-failsafe-hardware: { status: not-started, note: "contactor + local automations on gateway sites (C-20, RL-26)" }
   e07:
     status: in-progress
-    note: "envelope v1, validator, dedupe, summary implemented; publisher transport not started"
-  e08: { status: not-started, note: "spec only" }
-  e09: { status: not-started, note: "spec only" }
+    note: "envelope v1, validator, dedupe, summary and the producer implemented; transport and runtime publishing not started (RL-30)"
+    stories:
+      S1-schema: { status: done }
+      S2-validator: { status: done }
+      S3-dedupe: { status: done }
+      S4-producer: { status: done, note: "one envelope per quality/source/authority; rejections are flags, not zero metrics" }
+      S5-transport: { status: not-started, note: "no MQTT/HTTP sink; seq restarts on restart (RL-30)" }
+      S6-authority: { status: partial, note: "source authority is a field, not yet enforced across gateway and vendor-cloud samples" }
+  e08: { status: in-progress, note: "version matrix + per-tenant rollback written (docs/ops/VERSION_MATRIX.md); tenancy, provisioning sequence, SLOs and compute math still outline" }
+  e09: { status: in-progress, note: "allocation math implemented (merit order, simultaneity, trim); settlement, payout and shadow-price intake not started" }
   e10: { status: not-started, note: "later phase; no code" }
   e11: { status: in-progress, note: "phased plan doc exists; gates updated as increments land" }
   e12: { status: not-started, note: "risk register seeded at bootstrap" }
