@@ -12,14 +12,20 @@ current:
   step: spike                    # context-check | draft | verify | review | fix | gate | accepted
 
 next_action: >
-  The write path is wired and switched off: the options flag apply_haeo_plan (default
-  false) makes runtime.py run the flow driver in an executor thread, audit the result
-  and raise a repair issue when the apply is blocked or partial. Deliberate gaps now
-  live in docs/verification/REVIEW_LATER.md (RL-01..RL-18) with code references and an
-  integrity test. Next: close OQ-021 (HAEO efficiency units) by reading the battery
-  segment code, then the live run.
+  OQ-021 is closed from source: efficiency is a 0..1 ratio that the segment multiplies,
+  so HAEO's own 95.0 default is a trap; the bridge always writes efficiency and the
+  profile validator range-checks it (ADR-0018, F-057..F-060). Next: OQ-022 (who
+  supplies a charger's run-window calendar), then the live run that flips
+  HAEO_SURFACE_LIVE_VERIFIED.
 
 implemented:
+  - date: 2026-11-06
+    summary: >
+      OQ-021 closed: efficiency is a 0..1 ratio (segment multiplies, unit doc says
+      ratio), HAEO's 95.0 default would create energy, so the plan always writes
+      efficiency and the profile rejects out-of-range values (ADR-0018, RL-19).
+      136 tests pass.
+    entry: docs/updates/2026-11-06-efficiency-units.md
   - date: 2026-11-06
     summary: >
       First live write path wired behind the apply_haeo_plan option (default off), with

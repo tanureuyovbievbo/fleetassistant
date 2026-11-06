@@ -80,7 +80,7 @@ All notable changes to this project are documented here. The format follows [Kee
   - `adapters/` — capability descriptors (limits, rate limit, hysteresis, consent, backing, authority, fail-safe), safety pipeline, and API-backed plus Modbus-backed stub adapters behind one contract.
   - `executor.py`, `audit.py`, `ledger.py`, `telemetry.py` — plan execution with staleness and fail-safe, SHA-256 hash-chained audit log, commitments ledger that rejects over-commitment, telemetry envelope v1 with dedupe and firm/estimated separation.
   - Home Assistant glue: `config_flow.py` (config + options), `runtime.py` (repairs on validation failure), `manifest.json` with zero pip requirements, `hacs.json`.
-- Tests: 134 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, element field table and connectivity, flow driver against a fake port, pricing, adapters, executor, ledger, telemetry, boundary probes).
+- Tests: 136 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, element field table and connectivity, flow driver against a fake port, pricing, adapters, executor, ledger, telemetry, boundary probes).
 - CI: `ci.yml` (ruff, boundary probes, pytest, hassfest, HACS validation, manifest pin check), `release.yml` (zip + release), `haeo-contract.yml` (manual live-HAEO contract run).
 
 ### Added
@@ -91,4 +91,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - Placeholder directories for the integration, site profiles, rule packs, fleet services, and tests. No implementation code.
 
 ### Changed
+- **Efficiency units closed (OQ-021).** HAEO's segment computes `output = input *
+  efficiency` and documents the field as a 0..1 ratio, while its own default is
+  `95.0`. The bridge now always writes efficiency as a ratio (`92.5` → `0.925`,
+  default `0.95`) instead of passing percentages through, and the site-profile
+  validator rejects values outside 1..100 with a warning below 50 (F-057..F-060,
+  ADR-0018, RL-19).
 - Product renamed from HA-OPENDERMS (domain `openderms`) to fleetassistant (domain `fleetassistant`) to match the repository (ADR-0011). Resolves OQ-008.

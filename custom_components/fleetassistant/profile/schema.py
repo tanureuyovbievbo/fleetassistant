@@ -373,6 +373,20 @@ def _validate_element(c: _Collector, path: str, element: Any) -> tuple[str | Non
         if lo is not None and hi is not None and lo >= hi:
             c.error("range", f"{path}.min_soc_pct", "must be lower than max_soc_pct")
         _validate_degradation_cost(c, f"{path}.degradation_cost", element.get("degradation_cost"))
+        # Round-trip efficiency as a percentage (0 is a dead battery, 100 is lossless).
+        # HAEO stores it as a 0..1 ratio and multiplies (F-058), so the bridge divides.
+        for key, label in (
+            ("charge_efficiency_pct", "charge efficiency"),
+            ("discharge_efficiency_pct", "discharge efficiency"),
+        ):
+            if key in element:
+                value = c.number(f"{path}.{key}", element[key], minimum=1, maximum=100)
+                if value is not None and value < 50:
+                    c.warn(
+                        "range",
+                        f"{path}.{key}",
+                        f"{label} below 50% is unusual: check whether the number is a percentage",
+                    )
         if cap is None:
             pass
     elif kind == "solar":

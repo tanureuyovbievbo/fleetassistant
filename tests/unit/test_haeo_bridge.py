@@ -19,6 +19,7 @@ from custom_components.fleetassistant.haeo_bridge.plan import (
     compile_plan,
 )
 from custom_components.fleetassistant.haeo_bridge.prevalidate import prevalidate
+from custom_components.fleetassistant.profile.schema import validate_profile
 
 #: Stand-in for a live-confirmed mapping: real HAEO element types where the
 #: correspondence is unambiguous, a junction for the kinds still under decision
@@ -133,6 +134,32 @@ def test_battery_fields_are_sectioned_and_tagged() -> None:
     # HAEO's own form default, written explicitly rather than left implicit.
     assert battery.sections["advanced"]["charge_limit_cost"]["value"] == 100.0
     assert battery.profile_extras["degradation_cost"]["currency_per_kwh"] == 0.03
+
+
+def test_battery_efficiency_is_a_ratio_and_never_omitted() -> None:
+    """HAEO computes ``output = input * efficiency`` and defaults the field to 95.0.
+
+    Under that maths 95.0 would create energy, so we must always write the field
+    (F-057..F-059, RL-19)."""
+    profile = example("solark_gateway_primary.yaml")
+    battery = next(e for e in profile["systems"][0]["elements"] if e["kind"] == "battery")
+    battery["charge_efficiency_pct"] = 92.5
+
+    element = next(e for e in compile_plan(profile, VERIFIED_MAP).elements if e.name == "battery")
+    efficiency = element.sections["efficiency"]
+    assert efficiency["efficiency_source_target"] == {"type": "constant", "value": 0.925}
+    # 92.5 % is unconventional for the other direction too, so the schema warns but
+    # still compiles; the discharge default stays a sane ratio, never 95.0.
+    assert efficiency["efficiency_target_source"] == {"type": "constant", "value": 0.95}
+
+
+def test_efficiency_outside_a_percentage_is_rejected() -> None:
+    profile = example("solark_gateway_primary.yaml")
+    battery = next(e for e in profile["systems"][0]["elements"] if e["kind"] == "battery")
+    battery["charge_efficiency_pct"] = 0.925  # someone wrote the ratio, not the percentage
+
+    issues = validate_profile(profile)
+    assert any(issue.code == "range" and issue.path.endswith("charge_efficiency_pct") for issue in issues)
 
 
 def test_reapplying_the_same_plan_is_a_noop() -> None:

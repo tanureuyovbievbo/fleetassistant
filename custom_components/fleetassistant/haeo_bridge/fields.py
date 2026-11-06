@@ -114,8 +114,12 @@ BATTERY_FIELDS = (
     _f(SECTION_LIMITS, "max_charge_percentage", "ratio", "max_soc_pct", unit="%", source=SOURCE_ELEMENTS + "battery.py"),
     _f(SECTION_POWER_LIMITS, "max_power_target_source", "constant", "max_charge_kw", unit="kW", source=SOURCE_ELEMENTS + "battery.py"),
     _f(SECTION_POWER_LIMITS, "max_power_source_target", "constant", "max_discharge_kw", unit="kW", source=SOURCE_ELEMENTS + "battery.py"),
-    _f(SECTION_EFFICIENCY, "efficiency_source_target", "constant", "charge_efficiency_pct", default=95.0, unit="%", source=SOURCE_SECTIONS + "efficiency.py"),
-    _f(SECTION_EFFICIENCY, "efficiency_target_source", "constant", "discharge_efficiency_pct", default=95.0, unit="%", source=SOURCE_SECTIONS + "efficiency.py"),
+    # Efficiency is a 0..1 ratio: the segment computes ``output = input * efficiency``
+    # (F-058) and OutputType.EFFICIENCY is documented as "ratio (0-1, displayed as %)"
+    # (F-057). HAEO's own field default is 95.0 (F-059), which under that maths would
+    # create energy, so this field is ALWAYS written — never omitted (OQ-021, HAEO bug).
+    _f(SECTION_EFFICIENCY, "efficiency_source_target", "ratio", "charge_efficiency_pct", required=True, default=95.0, unit="%", source=SOURCE_SECTIONS + "efficiency.py"),
+    _f(SECTION_EFFICIENCY, "efficiency_target_source", "ratio", "discharge_efficiency_pct", required=True, default=95.0, unit="%", source=SOURCE_SECTIONS + "efficiency.py"),
     _f(SECTION_PRICING, "salvage_value", "constant", "salvage_value", unit="currency/kWh", source=SOURCE_ELEMENTS + "battery.py"),
     # Required by BatteryAdvancedConfig with no default in the schema; HAEO's own
     # form default is 100.0 (a penalty rate, not a price). We write it explicitly.
@@ -141,8 +145,12 @@ EV_FIELDS = (
     _f(SECTION_CHARGING, "max_discharge_rate", "constant", "max_discharge_kw", unit="kW", source=SOURCE_ELEMENTS + "ev.py"),
     _f(SECTION_CHARGING, "connected", "entity", "connected_entity", required=True, unit="bool", source=SOURCE_ELEMENTS + "ev.py"),
     _f(SECTION_PUBLIC_CHARGING, "public_charging_price", "constant", "public_charging_price", default=0.6, unit="currency/kWh", source=SOURCE_ELEMENTS + "ev.py"),
-    _f(SECTION_EFFICIENCY, "efficiency_source_target", "constant", "charge_efficiency_pct", default=95.0, unit="%", source=SOURCE_SECTIONS + "efficiency.py"),
-    _f(SECTION_EFFICIENCY, "efficiency_target_source", "constant", "discharge_efficiency_pct", default=95.0, unit="%", source=SOURCE_SECTIONS + "efficiency.py"),
+    # Efficiency is a 0..1 ratio: the segment computes ``output = input * efficiency``
+    # (F-058) and OutputType.EFFICIENCY is documented as "ratio (0-1, displayed as %)"
+    # (F-057). HAEO's own field default is 95.0 (F-059), which under that maths would
+    # create energy, so this field is ALWAYS written — never omitted (OQ-021, HAEO bug).
+    _f(SECTION_EFFICIENCY, "efficiency_source_target", "ratio", "charge_efficiency_pct", required=True, default=95.0, unit="%", source=SOURCE_SECTIONS + "efficiency.py"),
+    _f(SECTION_EFFICIENCY, "efficiency_target_source", "ratio", "discharge_efficiency_pct", required=True, default=95.0, unit="%", source=SOURCE_SECTIONS + "efficiency.py"),
     _f(SECTION_ADVANCED, "charge_limit_cost", "constant", "charge_limit_cost", required=True, default=100.0, unit="currency/kWh", source=SOURCE_ELEMENTS + "ev.py"),
 )
 
@@ -189,9 +197,10 @@ PROFILE_ONLY_KEYS = frozenset(
     }
 )
 
-#: RL-04 (docs/verification/REVIEW_LATER.md): HAEO's efficiency default is 95.0
-#: while every neighbouring ratio is 0..1, so a profile value is passed through
-#: unchanged until the live run says whether HAEO divides by 100 (OQ-021).
+#: OQ-021 resolved from source: efficiency is a 0..1 ratio (the segment computes
+#: ``output = input * efficiency``, F-058) and HAEO's own default of 95.0 is wrong
+#: under that maths. The field is therefore always written, and a live run confirms
+#: only that HAEO stores what we send.
 ELEMENT_FIELDS_LIVE_VERIFIED = False
 ELEMENT_FIELDS_SOURCE = (
     f"SOURCE_VERIFIED field table from haeo@{contracts.HAEO_SURFACE_VERSION} "

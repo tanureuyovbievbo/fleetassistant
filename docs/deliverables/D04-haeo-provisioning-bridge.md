@@ -17,7 +17,7 @@
 >
 > **Flow driver (implemented):** `haeo_bridge/flows.py` answers HAEO's config flow (hub), options flow (hub settings) and subentry flows (elements) through a narrow `FlowPort`; `haeo_bridge/ha_port.py` is the only module touching `hass`. A refused write stops the apply as `partial` with a repair issue. Rule: ADR-0014.
 >
-> **Still open:** the live run (accept HAEO's payloads — OQ-017), how our `_bus` junction relates to HAEO's own switchboard junction and whether pruning may ever be enabled (OQ-018), who supplies the run-window calendar a charger needs (OQ-022), HAEO's efficiency units (OQ-021), OQ-011 (shadow prices), OQ-007 (price/load sensor formats).
+> **Still open:** the live run (accept HAEO's payloads — OQ-017), how our `_bus` junction relates to HAEO's own switchboard junction and whether pruning may ever be enabled (OQ-018), who supplies the run-window calendar a charger needs (OQ-022), OQ-021 is closed (efficiency is a ratio we always write), OQ-011 (shadow prices), OQ-007 (price/load sensor formats).
 >
 > **Wired 2026-11-06:** `runtime.py` calls `apply_plan` when the `apply_haeo_plan` option is on (default off), in an executor thread, with the port bridging onto `hass.loop`; results are audited and surfaced as a repair issue. Deliberate gaps are in `docs/verification/REVIEW_LATER.md`.
 >
