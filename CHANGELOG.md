@@ -140,7 +140,11 @@ All notable changes to this project are documented here. The format follows [Kee
   - `adapters/` — capability descriptors (limits, rate limit, hysteresis, consent, backing, authority, fail-safe), safety pipeline, and API-backed plus Modbus-backed stub adapters behind one contract.
   - `executor.py`, `audit.py`, `ledger.py`, `telemetry.py` — plan execution with staleness and fail-safe, SHA-256 hash-chained audit log, commitments ledger that rejects over-commitment, telemetry envelope v1 with dedupe and firm/estimated separation.
   - Home Assistant glue: `config_flow.py` (config + options), `runtime.py` (repairs on validation failure), `manifest.json` with zero pip requirements, `hacs.json`.
-- Tests: 288 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, element field table and connectivity, flow driver against a fake port, pricing, adapters, executor, ledger, telemetry, boundary probes).
+- Telemetry transport (`telemetry/transport.py`): `HttpSink`/`MqttSink` over injected
+  callables, a bounded oldest-first `Spool`, and `TelemetryPublisher` that validates
+  before sending, retries on 5xx/connection errors, falls through to the next sink on
+  a 4xx, and reports spool depth (RL-30 partly closed: runtime does not wire it yet).
+- Tests: 304 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, element field table and connectivity, flow driver against a fake port, pricing, adapters, executor, ledger, telemetry, boundary probes).
 - CI: `ci.yml` (ruff, boundary probes, pytest, hassfest, HACS validation, manifest pin check), `release.yml` (zip + release), `haeo-contract.yml` (manual live-HAEO contract run).
 
 ### Added

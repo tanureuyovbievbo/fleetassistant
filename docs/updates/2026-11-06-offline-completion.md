@@ -16,6 +16,7 @@ row is honestly marked unverified.
 | Reference re-check | `runtime._watch_references` | Every referenced entity is subscribed; a rename or removal raises its repair within one state event instead of at the next restart. Closes RL-24. |
 | Fleet allocation | `fleet/allocation.py` | Merit-order allocation with availability, opt-out, comfort reserve, battery-life and share caps; simultaneous capacity from windows; dispatch deltas with hysteresis; bounded feedback trim. |
 | Preflight tool | `tools/preflight.py` | Offline: validate, compile, prevalidate, resolve tariffs, list references. Exit code 1 on any error. The examples exit BLOCKED on the two deliberate gates. |
+| Telemetry transport | `custom_components/fleetassistant/telemetry/transport.py` | Validates before sending, falls through sinks (a 4xx at one sink still tries the next, a 5xx spools), and keeps a bounded oldest-first spool so a network blip costs nothing and a long outage is visible. |
 | Version matrix | `docs/ops/VERSION_MATRIX.md` | The four layers, where each pin lives, the one (unverified) supported combination, how a combination becomes supported, and the per-tenant rollback table. |
 
 ## Why the producer splits envelopes
@@ -36,7 +37,7 @@ every site a 5 kW contributor to a 10 kW event.
 
 ## Verification
 
-- `python -m pytest -q` → 288 passed, 7 deselected (live).
+- `python -m pytest -q` → 304 passed, 7 deselected (live).
 - `python -m ruff check .` → clean.
 - `python tools/check_boundaries.py` → `constraint probes: clean`.
 - `python tools/preflight.py site_profiles/examples/solark_gateway_primary.yaml`

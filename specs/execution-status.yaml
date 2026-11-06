@@ -50,7 +50,7 @@ epics:
       S2-validator: { status: done }
       S3-dedupe: { status: done }
       S4-producer: { status: done, note: "one envelope per quality/source/authority; rejections are flags, not zero metrics" }
-      S5-transport: { status: not-started, note: "no MQTT/HTTP sink; seq restarts on restart (RL-30)" }
+      S5-transport: { status: partial, note: "publisher + HTTP/MQTT sinks + bounded spool implemented and tested; runtime does not wire them, no collector endpoint, seq not persisted (RL-30)" }
       S6-authority: { status: partial, note: "source authority is a field, not yet enforced across gateway and vendor-cloud samples" }
   e08: { status: in-progress, note: "version matrix + per-tenant rollback written (docs/ops/VERSION_MATRIX.md); tenancy, provisioning sequence, SLOs and compute math still outline" }
   e09: { status: in-progress, note: "allocation math implemented (merit order, simultaneity, trim); settlement, payout and shadow-price intake not started" }

@@ -33,7 +33,8 @@ implemented:
       divergence/degraded price repairs (RL-22 closed) and state-subscribed reference
       re-checks (RL-24 closed), merit-order fleet allocation with simultaneity and
       feedback trim, an offline preflight CLI, and the D08 version matrix. 288 tests
-      pass. Open: live verification gate, RL-29..RL-32.
+      pass. Telemetry transport added afterwards (sinks + bounded spool; runtime wiring
+      still open, RL-30). Open: live verification gate, RL-29..RL-32.
     entry: docs/updates/2026-11-06-offline-completion.md
   - date: 2026-11-06
     summary: >
