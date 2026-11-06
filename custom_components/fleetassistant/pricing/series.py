@@ -6,11 +6,26 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from ..haeo_bridge import contracts
+
 #: HAEO reads forecast-style sensors whose ``forecast`` attribute lists points
-#: with a boundary time and a value (brief). The exact key names and the
-#: attribute shape are UNVERIFIED until the e04 spike (OQ-007). Kept in one
-#: place so the spike changes one function.
+#: with a boundary time and a value. The boundary key is ``time`` at HAEO v0.5.0
+#: (source-verified, ``core/data/forecast_times.py``); what a *price* or *load*
+#: input sensor is expected to look like is still unconfirmed against a live
+#: instance (OQ-007), so this flag stays False.
 FORECAST_FORMAT_VERIFIED = False
+
+
+def forecast_item(
+    ts: datetime, value: float, boundary_key: str = contracts.FORECAST_BOUNDARY_KEY
+) -> dict[str, str | float]:
+    """Return one ``forecast`` attribute point.
+
+    Home Assistant's own forecast convention names the boundary ``datetime``,
+    while HAEO reads ``time``. The key is a parameter so a caller can publish to
+    either consumer without a second code path.
+    """
+    return {boundary_key: ts.astimezone(UTC).isoformat(), contracts.FORECAST_VALUE_KEY: float(value)}
 
 
 @dataclass(frozen=True, order=True)
@@ -22,8 +37,8 @@ class Point:
         if self.ts.tzinfo is None:
             raise ValueError("series points must be timezone-aware")
 
-    def as_forecast_item(self) -> dict[str, str | float]:
-        return {"datetime": self.ts.astimezone(UTC).isoformat(), "value": self.value}
+    def as_forecast_item(self, boundary_key: str = contracts.FORECAST_BOUNDARY_KEY) -> dict[str, str | float]:
+        return forecast_item(self.ts, self.value, boundary_key)
 
 
 def floor_to(ts: datetime, step_minutes: int) -> datetime:

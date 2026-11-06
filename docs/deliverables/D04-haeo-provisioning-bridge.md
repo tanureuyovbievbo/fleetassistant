@@ -5,13 +5,17 @@
 | ID | D04 |
 | Epic | e04-haeo-bridge |
 | Version | 0.0.0 (stub) |
-| Status | in-progress (blocked by design) |
+| Status | in-progress (source-verified, live gate closed) |
 | Owner role | architect (design) → engineer (code) |
 | Last updated | 2026-11-05 |
 | Depends on | D01, D03, C-04, C-05, C-06, C-07, C-10, C-23, ADR-0003, ADR-0004, ADR-0007, OQ-002, OQ-006, OQ-007, OQ-009 |
 | Risk | **Highest-risk item. Spike first** (see `specs/epics/e04-haeo-bridge/epic.md`, story S1). |
 
-> **Implementation:** plan compile, pre-validation, version gate, and idempotent apply exist; HAEO names unverified so apply is blocked (OQ-002, OQ-006, ADR-0012).
+> **Implementation:** plan compile, pre-validation, version gate, and idempotent apply exist. The HAEO v0.5.0 surface is now read from the pinned source and recorded in `haeo_bridge/contracts.py` (spike: `specs/archive/spikes/SPIKE-2026-11-05-haeo-v050-surface.md`); apply stays blocked until a live instance confirms it (ADR-0012 + `contracts.HAEO_SURFACE_LIVE_VERIFIED`).
+>
+> **Design correction (source-verified):** HAEO models elements and connections as config **subentries** of the hub entry, not as separate config entries. The runtime `HaeoDriver` therefore drives subentry flows; the `ElementPlan`/`ConnectionPlan` data model is unaffected. `meter`, `thermostat`, and `relay` have no HAEO element — see ADR-0013 (proposed).
+>
+> **Still open:** OQ-016 (programmatic subentry API), OQ-017 (per-element field keys/units), OQ-011 (policy pricing/shadow prices), OQ-007 (price/load sensor formats).
 >
 > The outline below remains the acceptance contract; code lands against it.
 >

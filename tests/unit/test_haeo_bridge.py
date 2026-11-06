@@ -9,6 +9,7 @@ from custom_components.fleetassistant.haeo_bridge.apply import (
     apply_plan,
     check_version,
 )
+from custom_components.fleetassistant.haeo_bridge.contracts import CANDIDATE_KIND_TO_TYPE
 from custom_components.fleetassistant.haeo_bridge.plan import (
     DEFAULT_TYPE_MAP,
     HaeoTypeMap,
@@ -17,7 +18,12 @@ from custom_components.fleetassistant.haeo_bridge.plan import (
 )
 from custom_components.fleetassistant.haeo_bridge.prevalidate import prevalidate
 
-VERIFIED_MAP = HaeoTypeMap(types={kind: f"test_{kind}" for kind in DEFAULT_TYPE_MAP}, verified=True)
+#: Stand-in for a live-confirmed mapping: real HAEO element types where the
+#: correspondence is unambiguous, a junction for the kinds still under decision.
+VERIFIED_MAP = HaeoTypeMap(
+    types={kind: haeo_type or "junction" for kind, haeo_type in CANDIDATE_KIND_TO_TYPE.items()},
+    verified=True,
+)
 
 
 def test_compile_plan_from_gateway_example() -> None:
@@ -34,13 +40,22 @@ def test_compile_plan_from_gateway_example() -> None:
 def test_compile_plan_keeps_haoe_types_unverified_by_default() -> None:
     plan = compile_plan(example("tesla_cloud_primary.yaml"))
     assert plan.type_map.verified is False
-    assert all(element.haeo_type is None for element in plan.elements)
+    modelled = {e.kind: e.haeo_type for e in plan.elements}
+    assert modelled["grid"] == "grid"
+    assert modelled["battery"] == "battery"
+    assert DEFAULT_TYPE_MAP["meter"] is None
 
 
 def test_prevalidate_blocks_unverified_types() -> None:
     plan = compile_plan(example("tesla_cloud_primary.yaml"))
     codes = {issue.code for issue in prevalidate(plan)}
     assert "haeo_type_unverified" in codes
+
+
+def test_prevalidate_blocks_kinds_without_a_haoe_element() -> None:
+    plan = compile_plan(example("solark_gateway_primary.yaml"))
+    codes = {issue.code for issue in prevalidate(plan)}
+    assert "haeo_kind_unmapped" in codes
 
 
 def test_prevalidate_accepts_a_verified_type_map() -> None:

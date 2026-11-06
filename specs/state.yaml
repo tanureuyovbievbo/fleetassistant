@@ -12,19 +12,26 @@ current:
   step: spike                    # context-check | draft | verify | review | fix | gate | accepted
 
 next_action: >
-  Run the e04 spike (.pi/skills/haeo-bridge-contract). Read HAEO v0.5.0's config-flow
-  schema (config_flow.py + flows/*.py at the pinned tag) and a live instance, then fill
-  haeo_bridge/plan.py:DEFAULT_TYPE_MAP, HubPlan.options keys, pricing/series.py
-  FORECAST_FORMAT_VERIFIED and pricing/compiler.py INPUT_NAMES_VERIFIED. Flip
-  HaeoTypeMap.verified and turn the xfail(strict=True) tests in
-  tests/contract/haeo/test_live_haeo.py green. Nothing may be guessed to close these.
+  Two independent fronts. (1) Bridge: write the Home Assistant HaeoDriver over
+  config_entries.subentries (element creation is a subentry flow, see F-018) behind the
+  existing HaeoDriver protocol, keeping HA imports inside haeo_bridge/. Needs OQ-016.
+  (2) Modelling: none, because a live instance is the only way to close the remaining
+  xfails -- OQ-017 (per-element field keys) and the meter/thermostat/relay decision in
+  ADR-0013 are prerequisites for a real apply.
 
 implemented:
   - date: 2026-11-05
     summary: >
+      e04 source spike: HAEO v0.5.0's hub/element/connection surface read from the pinned
+      tag and recorded in haeo_bridge/contracts.py, SOURCES S-007..S-016, FACTS F-015..F-030.
+      Elements are config subentries, not entries; 13 element types; no meter/thermostat/relay.
+      Apply stays blocked until a live instance confirms.
+    entry: docs/updates/2026-11-05-haeo-source-spike.md
+  - date: 2026-11-05
+    summary: >
       v1 core (profile schema + loader, HAEO bridge, pricing, adapters, executor, audit,
       ledger, telemetry) and HA glue (config flow, options flow, runtime repairs),
-      102 tests passing, ruff and boundary probes clean.
+      114 tests passing, ruff and boundary probes clean.
     entry: docs/updates/2026-11-05-code-increment-1.md
 
 human_decisions_pending:
@@ -36,6 +43,13 @@ human_decisions_pending:
     needed_by: e04 acceptance
 
 decisions:
+  - id: ADR-0013
+    date: 2026-11-05
+    status: proposed
+    summary: >
+      grid/solar/battery/load/ev_charger map directly to HAEO element types. A meter is not
+      an element; thermostat and relay are control surfaces whose energy is carried by a
+      load-type element. Unmapped kinds block the apply rather than picking a near neighbour.
   - id: ADR-0012
     date: 2026-11-05
     summary: >
@@ -55,5 +69,5 @@ decisions:
 
 last_session:
   date: 2026-11-05
-  role: engineer (v1 core increment 1)
-  update_entry: docs/updates/2026-11-05-code-increment-1.md
+  role: source-verifier (e04 spike, source half)
+  update_entry: docs/updates/2026-11-05-haeo-source-spike.md

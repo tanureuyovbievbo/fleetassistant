@@ -15,7 +15,7 @@ Code that compiles a site profile into HAEO hub, element, and connection entries
 ## Stories
 | ID | Story | Owner role |
 |----|-------|-----------|
-| S1 | **Spike** (throwaway, `spike-prototype` skill): in a disposable HA container with pinned HAEO, record every flow step, field, subentry flow, and option key for hub, element types, and connections. Answer OQ-002, OQ-005, OQ-006, OQ-007, OQ-009. Output `specs/archive/spikes/SPIKE-haeo-config-flow.md` with transcripts. | engineer, source-verifier |
+| S1 | **Spike** (throwaway, `spike-prototype` skill): in a disposable HA container with pinned HAEO, record every flow step, field, subentry flow, and option key for hub, element types, and connections. Answer OQ-002, OQ-005, OQ-006, OQ-007, OQ-009. Output `specs/archive/spikes/SPIKE-haeo-config-flow.md` with transcripts. **Source half done:** `specs/archive/spikes/SPIKE-2026-11-05-haeo-v050-surface.md` (HAEO v0.5.0 read at the pinned tag; elements are subentries; 13 types; no meter/thermostat/relay). Live half needs SPIKE-LIVE-ACCESS. | engineer, source-verifier |
 | S2 | Design the HAEO network plan (intermediate representation) and the profile → plan mapping table. | architect |
 | S3 | Pre-validator: element names, connection endpoints, units, required inputs → fleetassistant repair issues. | engineer |
 | S4 | Applier: drives config flows (in-process first; REST/WebSocket for headless, per OQ-009). Idempotent diff: create, update, remove. | engineer |

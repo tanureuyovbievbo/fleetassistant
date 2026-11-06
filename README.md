@@ -6,6 +6,8 @@
 
 **Status:** Early v1 implementation. The pure-Python core of the site layer exists and is tested without Home Assistant: site-profile schema and loader, HAEO bridge (plan → pre-validate → idempotent apply), generic price/target model with a priced degradation term, control-adapter contract with a safety pipeline, hash-chained audit log, commitments ledger, plan executor with fail-safe, and telemetry envelope v1. The Home Assistant glue (config flow, options flow, repairs) is written but not yet exercised against a live HA.
 
+The HAEO v0.5.0 configuration surface has been read from the pinned source and recorded (`custom_components/fleetassistant/haeo_bridge/contracts.py`), so the bridge writes HAEO's real shapes — sectioned hub data, tagged horizon, config subentries for elements. Applying a profile is still **blocked on purpose** until a live instance confirms that surface; three profile kinds (`meter`, `thermostat`, `relay`) still need a modelling decision (ADR-0013, proposed).
+
 **Two gates are deliberately closed:** HAEO element type names (OQ-002) and hub option keys (OQ-006) are unverified, so the bridge refuses to apply a plan — see [docs/verification/OPEN_QUESTIONS.md](docs/verification/OPEN_QUESTIONS.md). Resolving them is the e04 spike, and it is the next honest step.
 
 ```bash

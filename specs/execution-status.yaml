@@ -14,13 +14,13 @@ epics:
       S3-migrations: { status: open, note: "seam exists in profile/loader.py:migrate; no v2 yet" }
   e04:
     status: in-progress
-    note: "bridge code complete and blocked by design; HAEO names unverified"
+    note: "HAEO v0.5.0 surface read from source and recorded; apply still blocked until a live instance confirms (ADR-0012)"
     stories:
-      S1-spike: { status: open, blocker: "OQ-002, OQ-006, OQ-007 — needs live HAEO v0.5.0" }
+      S1-spike: { status: in-progress, note: "source spike done (specs/archive/spikes/SPIKE-2026-11-05-haeo-v050-surface.md); live half blocked by SPIKE-LIVE-ACCESS" }
       S2-plan-compile: { status: done }
       S3-prevalidate: { status: done }
       S4-apply: { status: done, note: "diff/idempotency proven against InMemoryHaeoDriver; HA driver still to write" }
-      S5-contract-tests: { status: partial, note: "xfail(strict=True) placeholders in tests/contract/haeo" }
+      S5-contract-tests: { status: partial, note: "offline surface regression tests pass; live xfail(strict=True) tests still block on SPIKE-LIVE-ACCESS" }
   e05:
     status: in-progress
     note: "providers, overlays, compiler, degradation term implemented; HAEO representation unverified (OQ-012)"

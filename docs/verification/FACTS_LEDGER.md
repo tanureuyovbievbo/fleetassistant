@@ -23,19 +23,35 @@ This file holds verified technical facts about HAEO, Home Assistant, HACS, and v
 | F-012 | HAEO license | MIT | S-004 | 2026-11-05 | verified | C-19, D02 |
 | F-013 | HAEO uses the HiGHS solver through highspy | README: "bundled `highspy` bindings" | S-005 | 2026-11-05 | verified (wording only; packaging mechanism not verified) | D02, OQ-010 |
 | F-014 | HA installs integration `requirements` | HA dev docs: "Home Assistant will try to install the requirements into the `deps` subdirectory of the Home Assistant configuration directory if you are not using a `venv`…" If installation fails, the integration fails to load. | S-006 | 2026-11-05 | verified | C-08, OQ-001 |
+| F-015 | HAEO element types at v0.5.0 | `battery, battery_section, buffer, connection, deferrable_load, ev, grid, inverter, junction, load, node, solar, policy` (13) | S-009 | 2026-11-05 | verified (source) | C-23, D04 |
+| F-016 | HAEO has no element named `meter`, `thermostat`, or `relay` | Confirmed by the complete `ElementType` enum | S-009 | 2026-11-05 | verified (source) | OQ-002, D04 |
+| F-017 | HAEO hub creation data | `{integration_type: "hub", common: {name, horizon}, advanced: {debounce_seconds: 2, advanced_mode: bool}}` | S-012 | 2026-11-05 | verified (source; live-unverified) | D04 |
+| F-018 | HAEO elements/connections are config **subentries** of the hub entry | `subentry_type` equals the element type; subentry data starts `{name, element_type}`; element flows filtered by `advanced` flag | S-012 | 2026-11-05 | verified (source; live-unverified) | D04, OQ-009 |
+| F-019 | HAEO hub unique_id | `haeo_hub_<hub name lowercased, spaces → underscore>`; duplicate hub names rejected with `name_exists` | S-012 | 2026-11-05 | verified (source) | D04 |
+| F-020 | New HAEO hub is created with two subentries | a `network` subentry and a switchboard `junction` | S-012, S-007 | 2026-11-05 | verified (source) | D04 |
+| F-021 | HAEO stored field values are tagged | `{"type": "entity", "value": [ids]}` (+optional `on_states`/`off_states`) or `{"type": "constant", "value": float|bool}` | S-010 | 2026-11-05 | verified (source) | D04, OQ-002 |
+| F-022 | HAEO horizon value shape | preset → `{"value": "5_days"}`; forecast sensor → `{"value": ["sensor.x"]}`; default `5_days` | S-011 | 2026-11-05 | verified (source; live-unverified) | D04, OQ-007 |
+| F-023 | HAEO horizon presets | `2_days`, `3_days`, `5_days`, `7_days` (there is no 4-day or arbitrary-days preset) | S-008, S-011 | 2026-11-05 | verified (source) | D04 |
+| F-024 | HAEO default period layout | tiers of 5×1 min, 11×5 min, 46×30 min, 48×60 min (≈72 h / 110 periods); presets derive their own layout | S-008 | 2026-11-05 | verified (source) | D04, OQ-007 |
+| F-025 | HAEO "Relax impossible plans" | key `relax_infeasible`, in the hub **options** advanced section, default `False` | S-008, S-013 | 2026-11-05 | verified (source; live-unverified) | D04, ADR-0009 |
+| F-026 | HAEO `record_forecasts` option | `record_forecasts`, hub options advanced section, default `False` | S-008, S-013 | 2026-11-05 | verified (source) | D07 |
+| F-027 | HAEO forecast attribute boundary key | `time` (ISO 8601; tz-less read in HA time zone); values under `value`; n+1 boundaries = n periods; ≥2 increasing times required | S-014 | 2026-11-05 | verified (source) | D05, OQ-007 |
+| F-028 | HAEO hub setup form fields | only `name`, `horizon`, `advanced_mode`; there is no relax flag at creation | S-013 | 2026-11-05 | verified (source) | D04 |
+| F-029 | HAEO element form shows "policy pricing" fields for battery and load | `ELEMENT_SURFACED_PRICE_HINTS = {battery, load}` | S-015 | 2026-11-05 | verified (source) | D05, OQ-011 |
+| F-030 | HAEO element config fields are sectioned and type-specific | e.g. grid `power_limits` → `CONF_MAX_POWER_SOURCE_TARGET`; defaults live on `FieldHint`; optionality from `NotRequired` | S-016 | 2026-11-05 | verified (source; per-type key list still open) | D04, OQ-017 |
 
 ## Brief claims still awaiting verification
 
 These claims appear in the brief. They are treated as **UNVERIFIED** until an F-ID exists for them.
 
-| Brief claim | Tracked as |
-|-------------|-----------|
-| HAEO setup order: Hub (with horizon) → Element entries → Connection entries; config-flow only, no YAML | OQ-002, OQ-009 |
-| HAEO supports multiple hubs per HA instance | OQ-002 |
-| HAEO creates an input entity for every configured field (runtime-writable constants) | OQ-002 |
-| Horizon presets 2/3/5/7 days (default 5); periods grow 1 → 5 → 30 → 60 min | OQ-007 |
-| Custom horizon from a forecast sensor whose `forecast` attribute lists period boundaries | OQ-007 |
-| HAEO consumes forecast-style sensors (time + value points) | OQ-007 |
-| Pricing segments / policy pricing / Tagged Power; per-node shadow prices | OQ-011 |
-| Hub setting "Relax impossible plans" (default off); repair issues for broken references and unresolvable constraints | OQ-006 |
-| HAOS Supervisor "Python packages" setting is the path for highspy/numpy | OQ-001, OQ-010 |
+| Brief claim | Status after the e04 source spike | Tracked as |
+|-------------|----------------------------------|-----------|
+| Setup order: Hub (with horizon) → Element entries → Connection entries; config-flow only, no YAML | Corrected: hub first, then elements/connections as **subentries**, not config entries (F-018). Still config-flow only. | OQ-009 |
+| HAEO supports multiple hubs per HA instance | Consistent with the source (one config entry per hub, subentries scoped to it); live confirmation pending. | OQ-002 |
+| HAEO creates an input entity for every configured field | Partly: each field stores an `entity` or `constant` tagged value (F-021); which fields get input entities is derived from field hints (F-030). Live confirmation pending. | OQ-002 |
+| Horizon presets 2/3/5/7 days (default 5); periods grow 1 → 5 → 30 → 60 min | Verified (F-023, F-024). | closed |
+| Custom horizon from a forecast sensor whose `forecast` attribute lists period boundaries | Verified in shape (F-022, F-027); which sensor formats HAEO accepts as price/load inputs is still open. | OQ-007 |
+| HAEO consumes forecast-style sensors (time + value points) | Verified for boundary times (F-027); value units/semantics per input still open. | OQ-007 |
+| Pricing segments / policy pricing / Tagged Power; per-node shadow prices | Partly: `policy` element type exists and battery/load carry surfaced price hints (F-029); segment/tagged-power field names and shadow-price outputs still open. | OQ-011 |
+| Hub setting "Relax impossible plans" (default off) | Verified: `relax_infeasible`, options-only, default `False` (F-025). Repair issue IDs still open. | OQ-006 |
+| HAOS Supervisor "Python packages" setting is the path for highspy/numpy | Unresolved; conflicts with F-014. | OQ-001, OQ-010 |

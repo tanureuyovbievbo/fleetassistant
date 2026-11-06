@@ -30,7 +30,7 @@ def test_pinned_version_is_the_one_under_test() -> None:
 
 
 @requires_live
-@pytest.mark.xfail(strict=True, reason="OQ-002: HAEO element type names are unverified")
+@pytest.mark.xfail(strict=True, reason="OQ-002: meter/thermostat/relay have no recorded HAEO element")
 def test_element_type_names_are_verified() -> None:
     from custom_components.fleetassistant.haeo_bridge.plan import DEFAULT_TYPE_MAP, HaeoTypeMap
 
@@ -39,12 +39,24 @@ def test_element_type_names_are_verified() -> None:
 
 
 @requires_live
-@pytest.mark.xfail(strict=True, reason="OQ-006: HAEO hub option keys are unverified")
-def test_hub_option_keys_are_verified() -> None:
+@pytest.mark.xfail(strict=True, reason="OQ-006: hub record shape is source-verified, not live-verified")
+def test_hub_record_shape_is_verified() -> None:
+    """The hub must be created by the config-flow API and read back as here.
+
+    Source-verified at v0.5.0 (``flows/hub.py``): creation data is sectioned and
+    the horizon is a tagged value, and ``relax_infeasible`` lives in the hub's
+    options rather than its creation data.
+    """
+    from custom_components.fleetassistant.haeo_bridge import contracts
     from custom_components.fleetassistant.haeo_bridge.plan import HubPlan
 
-    options = HubPlan(system_id="s", hub="h", horizon_mode="preset", preset_days=5).options()
-    assert set(options) == {"horizon", "relax_impossible_plans"}
+    plan = HubPlan(system_id="s", hub="h", horizon_mode="preset", preset_days=5)
+    data = plan.config_data()
+    assert set(data) == {contracts.CONF_INTEGRATION_TYPE, "common", "advanced"}
+    assert data["common"][contracts.CONF_HORIZON] == {contracts.HORIZON_VALUE_KEY: "5_days"}
+    assert plan.options_data()["advanced"][contracts.CONF_RELAX_INFEASIBLE] is True
+    # what a live instance must show us
+    assert contracts.HAEO_SURFACE_LIVE_VERIFIED is True
 
 
 @requires_live

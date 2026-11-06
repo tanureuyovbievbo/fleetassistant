@@ -13,23 +13,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from . import contracts
+
 HorizonMode = Literal["preset", "forecast_sensor"]
 
-#: HAEO element type names per profile kind.
+#: HAEO element type names per profile kind, read from HAEO v0.5.0.
 #:
-#: UNVERIFIED — the exact names must be read from HAEO at the pinned version
-#: during the e04 spike (OQ-002). Until ``verified`` is True the plan is blocked
-#: from applying (C-23). Do not fill these from memory.
-DEFAULT_TYPE_MAP: dict[str, str | None] = {
-    "grid": None,
-    "solar": None,
-    "battery": None,
-    "load": None,
-    "meter": None,
-    "ev_charger": None,
-    "thermostat": None,
-    "relay": None,
-}
+#: The names are source-verified (``haeo_bridge/contracts.py``); the *mapping
+#: choice* for ``meter``/``thermostat``/``relay`` is not, so those kinds stay
+#: ``None`` and block an apply (C-23, OQ-002). Do not fill them from memory.
+DEFAULT_TYPE_MAP: dict[str, str | None] = dict(contracts.CANDIDATE_KIND_TO_TYPE)
 
 
 @dataclass(frozen=True)
@@ -38,10 +31,17 @@ class HaeoTypeMap:
 
     types: dict[str, str | None] = field(default_factory=lambda: dict(DEFAULT_TYPE_MAP))
     verified: bool = False
-    source: str = "UNVERIFIED — resolve during the e04 spike (OQ-002)"
+    source: str = (
+        f"SOURCE_VERIFIED names from haeo@{contracts.HAEO_SURFACE_VERSION}; "
+        "LIVE_UNVERIFIED until tests/contract/haeo passes (OQ-002)"
+    )
 
     def lookup(self, kind: str) -> str | None:
         return self.types.get(kind)
+
+    @property
+    def unresolved_kinds(self) -> frozenset[str]:
+        return frozenset(kind for kind, haeo_type in self.types.items() if haeo_type is None)
 
 
 @dataclass(frozen=True)
@@ -53,17 +53,59 @@ class HubPlan:
     forecast_entity: str | None = None
     relax_impossible_plans: bool = True
 
-    def options(self) -> dict[str, Any]:
-        """Hub options as HAEO config-flow data.
+    @property
+    def horizon_preset(self) -> str | None:
+        """HAEO preset name for this hub's horizon, if it uses a preset."""
+        if self.horizon_mode != "preset":
+            return None
+        return contracts.horizon_preset_for(self.preset_days)
 
-        The option key names are UNVERIFIED (OQ-006); they are kept in one
-        place so the spike can correct them without touching callers.
+    def config_data(self) -> dict[str, Any]:
+        """Hub *creation* data as HAEO v0.5.0 stores it (sectioned).
+
+        Read from ``flows/hub.py:HubConfigFlow._create_hub_entry``: the setup
+        form only carries name and horizon, plus the advanced-mode flag. The
+        plan's ``relax_impossible_plans`` is written afterwards through
+        :meth:`options_data` because HAEO exposes it in the hub's options flow.
         """
         return {
+            contracts.CONF_INTEGRATION_TYPE: contracts.INTEGRATION_TYPE_HUB,
+            contracts.HUB_SECTION_COMMON: {
+                contracts.CONF_NAME: self.hub,
+                contracts.CONF_HORIZON: contracts.horizon_value(
+                    self.horizon_mode, self.horizon_preset, self.forecast_entity
+                ),
+            },
+            contracts.HUB_SECTION_ADVANCED: {
+                contracts.CONF_DEBOUNCE_SECONDS: contracts.DEFAULT_DEBOUNCE_SECONDS,
+                contracts.CONF_ADVANCED_MODE: False,
+            },
+        }
+
+    def options_data(self) -> dict[str, Any]:
+        """Hub *options* data this plan requires (advanced section only).
+
+        ``relax_infeasible`` is HAEO's "Relax impossible plans". Its default is
+        False and fleetassistant wants True on fleet sites (ADR-0009), so the
+        bridge always writes it explicitly.
+        """
+        return {
+            contracts.HUB_SECTION_ADVANCED: {
+                contracts.CONF_RELAX_INFEASIBLE: self.relax_impossible_plans,
+            }
+        }
+
+    def options(self) -> dict[str, Any]:
+        """Flat view of the hub settings the bridge asks HAEO for.
+
+        Kept for diffing: it is what the driver compares, not what HAEO stores.
+        """
+        return {
+            "hub": self.hub,
             "horizon_mode": self.horizon_mode,
-            "horizon_preset_days": self.preset_days,
+            "horizon_preset": self.horizon_preset,
             "horizon_forecast_entity": self.forecast_entity,
-            "relax_impossible_plans": self.relax_impossible_plans,
+            "relax_infeasible": self.relax_impossible_plans,
         }
 
 

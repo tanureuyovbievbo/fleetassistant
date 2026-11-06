@@ -86,3 +86,4 @@ Canonical instructions for any AI coding agent working in this repository. This 
 |------|--------|--------|--------|
 | 2026-11-05 | Initial harness | all of `.pi/` | Bootstrap |
 | 2026-11-05 | Product rename to fleetassistant | all of `.pi/` (name, domain, paths) | ADR-0011 |
+| 2026-11-05 | HAEO v0.5.0 surface spike | `custom_components/fleetassistant/haeo_bridge/` | ADR-0012, ADR-0013 |

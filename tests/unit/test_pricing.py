@@ -63,7 +63,7 @@ def test_overlay_adjusts_only_inside_its_window() -> None:
     overlay = TargetOverlay("event", _at(17), _at(19), price_delta_per_kwh=1.5)
     inputs = compile_price_inputs(profile, horizon_start=START, horizon_hours=24, step_minutes=60, overlays=[overlay])
     items = inputs.entities["price_import"]["forecast"]
-    by_time = {item["datetime"]: item["value"] for item in items}
+    by_time = {item["time"]: item["value"] for item in items}
     assert by_time[_at(17).isoformat()] == 0.31 + 1.5
     assert by_time[_at(20).isoformat()] == 0.31
     assert inputs.targets[0]["label"] == "event"

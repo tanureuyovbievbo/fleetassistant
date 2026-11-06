@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- e04 spike, source half: HAEO v0.5.0's configuration surface read from the pinned tag and recorded in `haeo_bridge/contracts.py`.
+  - Hub creation data is sectioned (`common`/`advanced`) and its horizon is a tagged value (`{"value": "5_days"}` or `{"value": ["sensor.x"]}`); `relax_infeasible` is options-only and defaults to `False`.
+  - Elements and connections are config **subentries** of the hub entry, not config entries. HAEO registers 13 element types; none is `meter`, `thermostat`, or `relay`.
+  - Element field values are tagged `entity`/`constant` values; a forecast point names its boundary `time`.
+  - Pre-validation now separates `haeo_type_unverified` (live gate), `haeo_kind_unmapped` (modelling gap), `haeo_type_unknown`, and `horizon_preset_unsupported`.
+  - New offline regression suite `tests/unit/test_haeo_contract_surface.py`; live `xfail(strict=True)` tests reshaped to fail the moment a live instance confirms the surface.
+  - Evidence: SOURCES S-007..S-016, FACTS F-015..F-030, OQ-002/006/007/009 narrowed, OQ-016/OQ-017 opened, ADR-0013 proposed, spike note in `specs/archive/spikes/`.
 - v1 core implementation (pure Python, no Home Assistant required at import time):
   - `profile/` — versioned site-profile schema (v1) with codes for dangling references, HAEO-name leaks, capability/unit mismatches, and cloud-primary authority violations; JSON/YAML loader and migration hook.
   - `haeo_bridge/` — plan compiler, referential-integrity pre-validation, version pin gate, and an idempotent applier that diffs hubs/elements/connections. Element type names and hub option keys stay unverified, so applying is blocked by design (C-23).
@@ -12,7 +19,7 @@ All notable changes to this project are documented here. The format follows [Kee
   - `adapters/` — capability descriptors (limits, rate limit, hysteresis, consent, backing, authority, fail-safe), safety pipeline, and API-backed plus Modbus-backed stub adapters behind one contract.
   - `executor.py`, `audit.py`, `ledger.py`, `telemetry.py` — plan execution with staleness and fail-safe, SHA-256 hash-chained audit log, commitments ledger that rejects over-commitment, telemetry envelope v1 with dedupe and firm/estimated separation.
   - Home Assistant glue: `config_flow.py` (config + options), `runtime.py` (repairs on validation failure), `manifest.json` with zero pip requirements, `hacs.json`.
-- Tests: 93 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, pricing, adapters, executor, ledger, telemetry, boundary probes).
+- Tests: 114 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, pricing, adapters, executor, ledger, telemetry, boundary probes).
 - CI: `ci.yml` (ruff, boundary probes, pytest, hassfest, HACS validation, manifest pin check), `release.yml` (zip + release), `haeo-contract.yml` (manual live-HAEO contract run).
 
 ### Added

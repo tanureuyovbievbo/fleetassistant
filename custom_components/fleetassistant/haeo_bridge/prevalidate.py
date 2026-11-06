@@ -10,6 +10,7 @@ import re
 from collections.abc import Iterable
 
 from ..profile.schema import Issue
+from . import contracts
 from .plan import NetworkPlan
 
 #: HAEO element/entity name constraints are UNVERIFIED; this is the
@@ -30,17 +31,44 @@ def prevalidate(plan: NetworkPlan) -> list[Issue]:
             issues.append(Issue("invalid_hub_name", f"hub[{name}]", "hub name has characters HAEO may reject"))
 
     # -- element types (C-23) ----------------------------------------------
-    if not plan.type_map.verified:
-        missing = sorted({e.kind for e in plan.elements if e.haeo_type is None})
-        if missing:
-            issues.append(
-                Issue(
-                    "haeo_type_unverified",
-                    "plan.type_map",
-                    f"HAEO element type names are not verified for kinds: {', '.join(missing)} "
-                    "(OQ-002, resolve in the e04 spike before applying)",
-                )
+    unknown = sorted(
+        {
+            str(element.haeo_type)
+            for element in plan.elements
+            if element.haeo_type is not None and not contracts.is_known_element_type(element.haeo_type)
+        }
+    )
+    if unknown:
+        issues.append(
+            Issue(
+                "haeo_type_unknown",
+                "plan.type_map",
+                f"not a HAEO element type at {contracts.HAEO_SURFACE_VERSION}: {', '.join(unknown)}",
             )
+        )
+
+    if not plan.type_map.verified and plan.elements:
+        issues.append(
+            Issue(
+                "haeo_type_unverified",
+                "plan.type_map",
+                "element types are source-verified against "
+                f"haeo@{contracts.HAEO_SURFACE_VERSION} but not confirmed on a live instance "
+                "(tests/contract/haeo must pass first; OQ-002, C-23)",
+            )
+        )
+
+    missing = sorted({e.kind for e in plan.elements if e.haeo_type is None})
+    if missing:
+        issues.append(
+            Issue(
+                "haeo_kind_unmapped",
+                "plan.type_map",
+                f"no HAEO element type recorded for kinds: {', '.join(missing)} "
+                f"(HAEO {contracts.HAEO_SURFACE_VERSION} has no element of that name; record the "
+                "modelling decision, OQ-002)",
+            )
+        )
 
     # -- names and uniqueness ----------------------------------------------
     seen: dict[str, str] = {}
@@ -77,6 +105,15 @@ def prevalidate(plan: NetworkPlan) -> list[Issue]:
     for hub in plan.hubs:
         if hub.horizon_mode == "preset" and hub.preset_days is None:
             issues.append(Issue("horizon_incomplete", f"hub[{hub.hub}]", "preset horizon needs preset_days"))
+        if hub.horizon_mode == "preset" and hub.horizon_preset is None:
+            presets = ", ".join(sorted(contracts.HORIZON_PRESETS))
+            issues.append(
+                Issue(
+                    "horizon_preset_unsupported",
+                    f"hub[{hub.hub}]",
+                    f"HAEO {contracts.HAEO_SURFACE_VERSION} offers only {presets}; got {hub.preset_days} days",
+                )
+            )
         if hub.horizon_mode == "forecast_sensor" and not hub.forecast_entity:
             issues.append(
                 Issue("horizon_incomplete", f"hub[{hub.hub}]", "forecast_sensor horizon needs forecast_entity")
