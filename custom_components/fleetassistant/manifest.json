@@ -1,10 +1,10 @@
 {
   "domain": "fleetassistant",
   "name": "fleetassistant",
+  "after_dependencies": ["haeo"],
   "codeowners": [],
   "config_flow": true,
   "dependencies": [],
-  "after_dependencies": ["haeo"],
   "documentation": "https://github.com/tanureuyovbievbo/fleetassistant",
   "integration_type": "hub",
   "iot_class": "local_push",

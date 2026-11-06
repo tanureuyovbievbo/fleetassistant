@@ -6,11 +6,15 @@ HAEO is the site optimizer (compose, never fork: C-04). This integration only
 Import order matters: this module MUST NOT import Home Assistant at module
 level, so the pure-Python core stays importable in tests without HA installed.
 HA imports are deferred into the setup functions (see tests/test_package_hygiene.py).
+
+There is deliberately no ``async_setup``: this integration is config-entry only
+(C-05), and defining it would require a module-level ``CONFIG_SCHEMA`` import of
+Home Assistant, which would break that hygiene rule.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from .const import DOMAIN, NAME, VERSION
 
@@ -25,15 +29,9 @@ __all__ = [
     "NAME",
     "VERSION",
     "__version__",
-    "async_setup",
     "async_setup_entry",
     "async_unload_entry",
 ]
-
-
-async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
-    """Set up the integration (YAML import is not supported: C-05)."""
-    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
