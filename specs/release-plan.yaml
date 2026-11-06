@@ -1,0 +1,106 @@
+# Release plan — ordered deliverables. Order is from the brief; stop for human review between each.
+schema_version: 1
+product: fleetassistant
+rule: >
+  Deliverables run in order. An epic starts only after the previous one is accepted by a human.
+  Exception allowed by human decision: e04 story S1 (HAEO bridge spike) may run in parallel with e01,
+  because the brief names it the highest-risk item ("spike it first").
+
+releases:
+  - id: R0-planning
+    goal: All design deliverables needed to start v1 code are accepted.
+    epics: [e00, e01, e02, e03]
+  - id: R1-integration-v1
+    goal: HACS-installable v1 integration (profile, bridge, pricing, adapters, telemetry) on a reference site.
+    epics: [e04, e05, e06, e07]
+  - id: R2-fleet
+    goal: Fleet services spec and scaffolding.
+    epics: [e08]
+  - id: R3-aggregation
+    goal: Aggregation design; California rule pack (later phase).
+    epics: [e09, e10]
+  - id: R-plan
+    goal: Phased plan and risk register. Revisited at every gate.
+    epics: [e11, e12]
+
+epics:
+  - id: e00
+    slug: e00-bootstrap
+    deliverable: null
+    title: Repository bootstrap and agentic harness
+    status: accepted
+    depends_on: []
+  - id: e01
+    slug: e01-architecture-spec
+    deliverable: D01
+    title: Architecture spec
+    depends_on: [e00]
+    kind: design
+  - id: e02
+    slug: e02-hacs-packaging
+    deliverable: D02
+    title: HACS packaging spec
+    depends_on: [e01]
+    kind: design+scaffold
+    human_decision: OQ-003
+  - id: e03
+    slug: e03-site-profile-schema
+    deliverable: D03
+    title: Site profile schema (versioned) + 3 examples
+    depends_on: [e02]
+    kind: design+schema
+  - id: e04
+    slug: e04-haeo-bridge
+    deliverable: D04
+    title: HAEO provisioning bridge (spike first)
+    depends_on: [e03]
+    kind: spike+design+code
+    risk: highest
+  - id: e05
+    slug: e05-price-target-model
+    deliverable: D05
+    title: Generic price/target model + rule-pack interface
+    depends_on: [e04]
+    kind: design+code
+  - id: e06
+    slug: e06-control-adapters
+    deliverable: D06
+    title: Control adapter layer + 2 stub adapters
+    depends_on: [e05]
+    kind: design+code
+  - id: e07
+    slug: e07-telemetry-schema
+    deliverable: D07
+    title: Telemetry & measurement schema
+    depends_on: [e06]
+    kind: design+schema
+  - id: e08
+    slug: e08-fleet-services
+    deliverable: D08
+    title: Fleet services spec + scaffolding
+    depends_on: [e07]
+    kind: design+scaffold
+  - id: e09
+    slug: e09-aggregation-services
+    deliverable: D09
+    title: Aggregation services
+    depends_on: [e08]
+    kind: design
+  - id: e10
+    slug: e10-rule-pack-california
+    deliverable: D10
+    title: Rule pack — California (later phase)
+    depends_on: [e09]
+    kind: research+design
+  - id: e11
+    slug: e11-phased-plan
+    deliverable: D11
+    title: Phased plan with gates
+    depends_on: [e10]
+    kind: plan
+  - id: e12
+    slug: e12-risk-register
+    deliverable: D12
+    title: Risk register + top-10 numbers
+    depends_on: [e11]
+    kind: plan

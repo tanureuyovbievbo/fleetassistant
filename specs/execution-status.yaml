@@ -1,0 +1,37 @@
+# Live status per epic. Update on every status change (see docs/WORKFLOW.md).
+schema_version: 1
+updated: 2026-11-05
+epics:
+  e00: { status: accepted, accepted_on: 2026-11-05, note: "bootstrap, docs only" }
+  e01: { status: in-progress, note: "architecture spec drafted; rejected-alternatives section still to review" }
+  e02: { status: in-progress, note: "manifest/hacs.json/CI/release zip implemented; license decision (OQ-003) still blocks submission" }
+  e03:
+    status: in-progress
+    note: "schema v1 + validator + 3 examples + 4 invalid fixtures implemented and tested; published JSON Schema synced by tests"
+    stories:
+      S1-schema: { status: done }
+      S2-examples: { status: done }
+      S3-migrations: { status: open, note: "seam exists in profile/loader.py:migrate; no v2 yet" }
+  e04:
+    status: in-progress
+    note: "bridge code complete and blocked by design; HAEO names unverified"
+    stories:
+      S1-spike: { status: open, blocker: "OQ-002, OQ-006, OQ-007 — needs live HAEO v0.5.0" }
+      S2-plan-compile: { status: done }
+      S3-prevalidate: { status: done }
+      S4-apply: { status: done, note: "diff/idempotency proven against InMemoryHaeoDriver; HA driver still to write" }
+      S5-contract-tests: { status: partial, note: "xfail(strict=True) placeholders in tests/contract/haeo" }
+  e05:
+    status: in-progress
+    note: "providers, overlays, compiler, degradation term implemented; HAEO representation unverified (OQ-012)"
+  e06:
+    status: in-progress
+    note: "interface + safety pipeline + API and Modbus stubs implemented; vendor adapters not started"
+  e07:
+    status: in-progress
+    note: "envelope v1, validator, dedupe, summary implemented; publisher transport not started"
+  e08: { status: not-started, note: "spec only" }
+  e09: { status: not-started, note: "spec only" }
+  e10: { status: not-started, note: "later phase; no code" }
+  e11: { status: in-progress, note: "phased plan doc exists; gates updated as increments land" }
+  e12: { status: not-started, note: "risk register seeded at bootstrap" }

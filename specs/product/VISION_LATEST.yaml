@@ -1,0 +1,26 @@
+schema_version: 1
+updated: 2026-11-05
+product: fleetassistant
+tagline: "Open distributed energy management — powered by Home Assistant · built on HAEO."
+vision: >
+  Every home with solar, batteries, EVs, or flexible loads runs one trustworthy optimizer
+  (HAEO) that is configured from a declarative site profile. The same site joins a fleet that
+  delivers honest, measured flexibility to programs without over-promising and without a
+  multi-tenant fork of Home Assistant.
+users:
+  - homeowner: installs from HACS, gets automatic HAEO setup and savings
+  - installer: deploys gateway-primary sites from a profile, with a fail-safe
+  - fleet operator: hosts tenants, provisions headlessly, dispatches, settles
+  - program partner: receives qualified capacity and reconciled performance records
+principles:
+  - compose, don't fork (HA Core, HAEO)
+  - one optimizer per site
+  - profile as code is the source of truth
+  - every device write goes through one adapter contract with safety limits
+  - honest authority tiers; never over-promise
+  - verified facts only; UNVERIFIED is a first-class state
+success_signals_v1:
+  - a HACS install on a reference site provisions a HAEO network from a profile with zero manual HAEO steps
+  - re-applying a profile is a no-op
+  - v1 runs with zero rule packs installed
+  - every control write is audited and within declared limits

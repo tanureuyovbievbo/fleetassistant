@@ -1,0 +1,134 @@
+"""T-02..T-05: HAEO bridge plan, pre-validation, version pinning, idempotency."""
+
+from __future__ import annotations
+
+from helpers import deep_copy, example
+
+from custom_components.fleetassistant.haeo_bridge.apply import (
+    InMemoryHaeoDriver,
+    apply_plan,
+    check_version,
+)
+from custom_components.fleetassistant.haeo_bridge.plan import (
+    DEFAULT_TYPE_MAP,
+    HaeoTypeMap,
+    NetworkPlan,
+    compile_plan,
+)
+from custom_components.fleetassistant.haeo_bridge.prevalidate import prevalidate
+
+VERIFIED_MAP = HaeoTypeMap(types={kind: f"test_{kind}" for kind in DEFAULT_TYPE_MAP}, verified=True)
+
+
+def test_compile_plan_from_gateway_example() -> None:
+    plan = compile_plan(example("solark_gateway_primary.yaml"))
+    assert plan.site_id == "solark_adu_demo"
+    assert plan.authority == "full"
+    assert len(plan.hubs) == 1
+    assert plan.hubs[0].relax_impossible_plans is True
+    names = {e.name for e in plan.elements}
+    assert {"grid", "battery", "ev", "hvac"} <= names
+    assert len(plan.connections) == 6
+
+
+def test_compile_plan_keeps_haoe_types_unverified_by_default() -> None:
+    plan = compile_plan(example("tesla_cloud_primary.yaml"))
+    assert plan.type_map.verified is False
+    assert all(element.haeo_type is None for element in plan.elements)
+
+
+def test_prevalidate_blocks_unverified_types() -> None:
+    plan = compile_plan(example("tesla_cloud_primary.yaml"))
+    codes = {issue.code for issue in prevalidate(plan)}
+    assert "haeo_type_unverified" in codes
+
+
+def test_prevalidate_accepts_a_verified_type_map() -> None:
+    plan = compile_plan(example("tesla_cloud_primary.yaml"), VERIFIED_MAP)
+    assert prevalidate(plan) == []
+
+
+def test_unverified_plan_is_blocked_and_nothing_is_applied() -> None:
+    driver = InMemoryHaeoDriver()
+    report = apply_plan(driver, compile_plan(example("tesla_cloud_primary.yaml")))
+    assert report.status == "blocked"
+    assert driver.calls == []
+    assert any(issue.code == "haeo_type_unverified" for issue in report.issues)
+
+
+def test_apply_creates_hub_elements_connections() -> None:
+    driver = InMemoryHaeoDriver()
+    plan = compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP)
+    report = apply_plan(driver, plan)
+    assert report.status == "applied"
+    assert "solark_house" in driver.hubs
+    assert set(driver.elements["solark_house"]) == {e.name for e in plan.elements}
+    assert ("grid", "meter") in driver.connections["solark_house"]
+    assert len(report.operations) == 1 + len(plan.elements) + len(plan.connections)
+
+
+def test_reapplying_the_same_plan_is_a_noop() -> None:
+    driver = InMemoryHaeoDriver()
+    plan = compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP)
+    apply_plan(driver, plan)
+    calls_after_first = list(driver.calls)
+    second = apply_plan(driver, plan)
+    assert second.status == "noop"
+    assert second.operations == []
+    assert driver.calls == calls_after_first
+
+
+def test_changed_element_is_updated_not_recreated() -> None:
+    driver = InMemoryHaeoDriver()
+    profile = example("solark_gateway_primary.yaml")
+    apply_plan(driver, compile_plan(profile, VERIFIED_MAP))
+    changed = deep_copy(profile)
+    changed["systems"][0]["elements"][3]["capacity_kwh"] = 40.0
+    report = apply_plan(driver, compile_plan(changed, VERIFIED_MAP))
+    assert [op.type for op in report.operations] == ["update_element"]
+    assert report.operations[0].name == "battery"
+
+
+def test_version_mismatch_blocks_before_any_apply() -> None:
+    driver = InMemoryHaeoDriver(version="9.9.9")
+    report = apply_plan(driver, compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP))
+    assert report.status == "blocked"
+    assert report.issues[0].code == "haeo_version_unsupported"
+    assert driver.calls == []
+
+
+def test_missing_haoe_is_reported() -> None:
+    issue = check_version(None)
+    assert issue is not None and issue.code == "haeo_missing"
+
+
+def test_dangling_connection_blocks_apply() -> None:
+    profile = deep_copy(example("solark_gateway_primary.yaml"))
+    profile["systems"][0]["connections"][0]["to"] = "ghost"
+    driver = InMemoryHaeoDriver()
+    report = apply_plan(driver, compile_plan(profile, VERIFIED_MAP))
+    assert report.status == "blocked"
+    assert driver.calls == []
+    assert any(issue.code == "dangling_connection" for issue in report.issues)
+
+
+def test_plan_round_trips_through_dict() -> None:
+    plan = compile_plan(example("multi_hub_adu.json"), VERIFIED_MAP)
+    restored = NetworkPlan.from_dict(plan.as_dict())
+    assert restored.as_dict() == plan.as_dict()
+    assert len(restored.hubs) == 2
+
+
+def test_dual_optimizer_per_system_is_rejected() -> None:
+    plan = compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP)
+    duplicated = NetworkPlan(
+        site_id=plan.site_id,
+        deployment_profile=plan.deployment_profile,
+        authority=plan.authority,
+        hubs=(plan.hubs[0], plan.hubs[0]),
+        elements=plan.elements,
+        connections=plan.connections,
+        type_map=plan.type_map,
+    )
+    codes = {issue.code for issue in prevalidate(duplicated)}
+    assert "dual_optimizer" in codes

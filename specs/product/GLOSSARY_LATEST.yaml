@@ -1,0 +1,32 @@
+# Ubiquitous language. Use these terms exactly. Add terms through define-language.
+schema_version: 1
+updated: 2026-11-05
+terms:
+  site: One home/premises under one tenant. May contain one or more systems.
+  system: An electrically separate energy system at a site; maps to one HAEO hub (e.g., main house vs ADU).
+  tenant: The customer boundary. One tenant = one HA container (C-01).
+  site profile: Versioned, declarative YAML/JSON document that is the source of truth for a site (C-10).
+  renderer: Component that turns a site profile into HA artifacts and a HAEO network plan.
+  HAEO network plan: Intermediate, versioned description of hubs, elements, connections, horizon, and options before applying.
+  bridge: The only module that talks to HAEO (custom_components/fleetassistant/haeo_bridge/), pinned to a HAEO version (C-07).
+  element: HAEO term for a node/component in the network (exact element types are UNVERIFIED until F-ID; OQ-002).
+  connection: HAEO term for a link between elements (UNVERIFIED details; OQ-002).
+  hub: HAEO top-level config entry holding the planning horizon (UNVERIFIED details; OQ-002).
+  horizon: HAEO planning window and period layout (preset or forecast-sensor; OQ-007).
+  shadow price: HAEO per-node marginal value output; used as site marginal cost in fleet allocation (OQ-011).
+  deployment profile: cloud_primary or gateway_primary.
+  cloud-primary: HA hosted per tenant in our cloud; vendor cloud APIs only; coarse authority.
+  gateway-primary: HAOS on an on-site mini PC; local protocols; full authority; hardware fail-safe.
+  authority tier: coarse (best-effort, never firm) or full (gateway). Carried on capabilities and telemetry (C-12).
+  control adapter: Implementation of the single device-control interface (C-09).
+  capability descriptor: Declared min/max, unit, rate limit, hysteresis, consent, backing, authority, fail-safe value.
+  backing: api (vendor cloud) or local (Modbus/LAN/relay).
+  rule pack: Installable module with rate schedules, export value curves, event targets, regulatory constraints; every number has provenance.
+  target overlay: Generic incentive/penalty over a time window and node, composed with prices.
+  degradation cost: Priced battery wear term (currency per kWh throughput or equivalent) — a model input (C-14).
+  commitments ledger: Per-site record of kW committed to programs per time window; prevents double counting (C-16).
+  qualified capacity: Capacity that may be offered as firm after authority, availability, and simultaneity are applied.
+  reconciled performance record: Single per-site, per-interval, per-commitment record feeding claims and payouts.
+  fail-safe: Local default state + contactor behavior when comms are lost (C-15).
+  non-performance: Reported failure to deliver a commitment; triggers opt-out, never concealment.
+  UNVERIFIED: Marker for any claim without a fetched primary source.

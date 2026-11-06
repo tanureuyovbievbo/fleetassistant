@@ -1,0 +1,634 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tanureuyovbievbo/fleetassistant/site_profiles/schema/site-profile.v1.schema.json",
+  "title": "fleetassistant site profile v1",
+  "description": "Declarative site description. HAEO-agnostic: no HAEO field names may appear here (C-06, C-10). YAML and JSON both validate against this schema. The executable validator (custom_components/fleetassistant/profile/schema.py) is authoritative; this file is the published contract and is kept in sync by tests/schema/test_schema_file.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "site",
+    "deployment",
+    "consent",
+    "systems",
+    "pricing",
+    "rule_packs"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{1,62}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "timezone": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile"
+      ],
+      "properties": {
+        "profile": {
+          "enum": [
+            "cloud_primary",
+            "gateway_primary"
+          ]
+        },
+        "relax_impossible_plans": {
+          "type": "boolean"
+        },
+        "fail_safe": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "contactor": {
+              "type": "boolean"
+            },
+            "local_automation": {
+              "type": "boolean"
+            },
+            "max_hold_minutes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "description": "fail_safe is required by policy for gateway_primary (C-15); the executable validator raises a WARNING when it is absent so staged onboarding is possible."
+    },
+    "consent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "granted"
+      ],
+      "properties": {
+        "granted": {
+          "type": "boolean"
+        },
+        "granted_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        }
+      }
+    },
+    "systems": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "haeo",
+          "elements"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,62}$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "haeo": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "hub",
+              "horizon"
+            ],
+            "properties": {
+              "hub": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.\\-]{0,59}$"
+              },
+              "horizon": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "mode"
+                ],
+                "properties": {
+                  "mode": {
+                    "enum": [
+                      "preset",
+                      "forecast_sensor"
+                    ]
+                  },
+                  "preset_days": {
+                    "enum": [
+                      2,
+                      3,
+                      5,
+                      7
+                    ]
+                  },
+                  "forecast_entity": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "elements": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/element"
+            }
+          },
+          "connections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "from",
+                "to"
+              ],
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "power",
+                    "signal"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "controls": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/control"
+      }
+    },
+    "pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider"
+      ],
+      "properties": {
+        "provider": {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "flat",
+                "tou",
+                "dynamic"
+              ]
+            },
+            "currency_per_kwh": {
+              "type": "number"
+            },
+            "fallback": {
+              "type": "number"
+            },
+            "blocks": {
+              "type": "array"
+            },
+            "series": {
+              "type": "array"
+            },
+            "export_series": {
+              "type": "array"
+            }
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "rule_packs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "element": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{1,62}$"
+        },
+        "kind": {
+          "enum": [
+            "grid",
+            "solar",
+            "battery",
+            "load",
+            "meter",
+            "ev_charger",
+            "thermostat",
+            "relay"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "vendor": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "entity_id": {
+          "type": "string"
+        },
+        "forecast_entity": {
+          "type": "string"
+        },
+        "peak_kw": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "import_limit_kw": {
+          "type": "number",
+          "minimum": 0
+        },
+        "export_limit_kw": {
+          "type": "number",
+          "minimum": 0
+        },
+        "capacity_kwh": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_charge_kw": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max_discharge_kw": {
+          "type": "number",
+          "minimum": 0
+        },
+        "min_soc_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "max_soc_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "degradation_cost": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "currency_per_kwh",
+            "source"
+          ],
+          "properties": {
+            "currency_per_kwh": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "source": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "topology": {
+          "enum": [
+            "whole_home",
+            "sub_panel"
+          ]
+        },
+        "max_amps": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 80
+        },
+        "phases": {
+          "enum": [
+            1,
+            3
+          ]
+        },
+        "min_setpoint_f": {
+          "type": "number",
+          "minimum": 40,
+          "maximum": 90
+        },
+        "max_setpoint_f": {
+          "type": "number",
+          "minimum": 40,
+          "maximum": 95
+        },
+        "rated_kw": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "battery"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "capacity_kwh",
+              "max_charge_kw",
+              "max_discharge_kw",
+              "min_soc_pct",
+              "max_soc_pct",
+              "degradation_cost"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "solar"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "peak_kw"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "load"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "forecast_entity"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "grid"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "import_limit_kw",
+              "export_limit_kw"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "meter"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "topology"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "ev_charger"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "max_amps",
+              "phases"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "thermostat"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "min_setpoint_f",
+              "max_setpoint_f"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "relay"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "rated_kw"
+            ]
+          }
+        }
+      ]
+    },
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "element",
+        "capability",
+        "unit",
+        "min",
+        "max",
+        "rate_limit_per_minute",
+        "hysteresis",
+        "consent_required",
+        "backing",
+        "authority",
+        "fail_safe_value"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{1,62}$"
+        },
+        "element": {
+          "type": "string"
+        },
+        "capability": {
+          "enum": [
+            "set_export_limit",
+            "set_battery_target",
+            "set_charger_amps",
+            "set_thermostat_setpoint",
+            "set_charging_schedule",
+            "shed_circuit"
+          ]
+        },
+        "unit": {
+          "enum": [
+            "kW",
+            "%",
+            "A",
+            "F",
+            "json",
+            "bool"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "rate_limit_per_minute": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "hysteresis": {
+          "type": "number",
+          "minimum": 0
+        },
+        "consent_required": {
+          "type": "boolean"
+        },
+        "backing": {
+          "enum": [
+            "api",
+            "local"
+          ]
+        },
+        "authority": {
+          "enum": [
+            "coarse",
+            "full"
+          ]
+        },
+        "fail_safe_value": {
+          "type": "number"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

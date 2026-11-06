@@ -1,0 +1,29 @@
+schema_version: 1
+updated: 2026-11-05
+in_scope_v1:
+  - HACS custom integration custom_components/fleetassistant (config flow + options flow, repairs)
+  - versioned site profile schema + validator + renderer
+  - HAEO provisioning bridge via HA config-flow API (pinned HAEO version, contract tests)
+  - generic price model: flat, TOU block, dynamic feeds (Nord Pool, Tibber, Octopus, EPEX, Electricity Maps)
+  - generic target/incentive overlay; priced battery-degradation term
+  - rule-pack interface (zero packs required)
+  - control-adapter interface + capability descriptors + safety pipeline
+  - one API-backed stub adapter, one Modbus-backed stub adapter
+  - per-site commitments ledger
+  - telemetry schema + publisher; append-only audit log
+in_scope_v2:
+  - tenant-per-container hosting, headless provisioning, identity/certs, WireGuard client-only
+  - OTA + version matrix with rollback; observability SLOs
+  - aggregation: capability ledger, qualified capacity, fleet LP on HAEO shadow prices, settlement
+  - consumer app
+later_phase:
+  - California rule pack (TOU/EV rates, NEM 3.0 export curves, ELRP/DRIP/BatteryVPP targets) and certifications
+out_of_scope:
+  - forking or patching HA Core or HAEO
+  - HAOS add-on as the primary form factor
+  - multiple tenants in one HA process
+  - a second optimizer per site (cloud or otherwise)
+  - writing HAEO storage/files
+  - regional tariff logic in v1 core
+  - using Nabu Casa cloud as our relay
+  - any certification/compliance claim without dated evidence

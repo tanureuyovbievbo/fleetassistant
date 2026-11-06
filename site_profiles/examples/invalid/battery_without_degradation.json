@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "site": { "id": "invalid_battery", "name": "Unpriced battery" },
+  "deployment": { "profile": "cloud_primary" },
+  "consent": { "granted": true },
+  "systems": [
+    {
+      "id": "main",
+      "name": "Main",
+      "haeo": { "hub": "invalid_battery_main", "horizon": { "mode": "preset", "preset_days": 5 } },
+      "elements": [
+        { "id": "grid", "kind": "grid", "import_limit_kw": 10, "export_limit_kw": 5 },
+        {
+          "id": "battery",
+          "kind": "battery",
+          "capacity_kwh": 10,
+          "max_charge_kw": 5,
+          "max_discharge_kw": 5,
+          "min_soc_pct": 10,
+          "max_soc_pct": 90
+        },
+        { "id": "house", "kind": "load", "forecast_entity": "sensor.load" }
+      ],
+      "connections": [{ "from": "grid", "to": "house" }]
+    }
+  ],
+  "controls": [],
+  "pricing": { "provider": { "type": "flat", "currency_per_kwh": 0.3 } },
+  "rule_packs": []
+}

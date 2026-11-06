@@ -1,0 +1,62 @@
+# Owner = role, never a model. Status: todo | doing | done | blocked
+schema_version: 1
+epic: e04
+tasks:
+  - id: e04-t01
+    story: S1
+    owner: engineer
+    title: Start a disposable HA container at the minimum supported version and install HAEO at the pinned tag
+    outputs: [specs/archive/spikes/SPIKE-haeo-config-flow.md]
+    verify: "HA and HAEO versions recorded. The HAEO integration loads."
+    status: todo
+  - id: e04-t02
+    story: S1
+    owner: engineer
+    title: Walk the hub, element (each type), and connection flows through the REST/WebSocket config-flow API and record every step_id, data_schema, and result
+    outputs: [specs/archive/spikes/SPIKE-haeo-config-flow.md]
+    verify: "Raw JSON transcripts attached for each flow."
+    status: todo
+  - id: e04-t03
+    story: S1
+    owner: source-verifier
+    title: Cross-check spike observations against haeo.io docs and hass-energy/haeo source at the pinned tag; add F-IDs
+    outputs: [docs/verification/FACTS_LEDGER.md, docs/verification/OPEN_QUESTIONS.md]
+    verify: "OQ-002, OQ-005, OQ-006, OQ-007, OQ-009 are resolved or narrowed."
+    status: todo
+  - id: e04-t04
+    story: S2
+    owner: architect
+    title: HAEO network plan IR + mapping table profile → plan
+    outputs: [docs/deliverables/D04-haeo-provisioning-bridge.md]
+    status: todo
+  - id: e04-t05
+    story: S3
+    owner: engineer
+    title: Pre-validator + repair issues
+    outputs: [custom_components/fleetassistant/haeo_bridge/, tests/unit/]
+    verify: "pytest tests/unit -k prevalidate"
+    status: todo
+  - id: e04-t06
+    story: S4
+    owner: engineer
+    title: Idempotent applier
+    outputs: [custom_components/fleetassistant/haeo_bridge/]
+    verify: "pytest tests/contract/haeo -k idempotent"
+    status: todo
+  - id: e04-t07
+    story: S5
+    owner: engineer
+    title: Version guard
+    verify: "pytest tests/contract/haeo -k version"
+    status: todo
+  - id: e04-t08
+    story: S7
+    owner: engineer
+    title: Contract test job in CI with pinned HAEO
+    verify: "CI job green on the pinned version"
+    status: todo
+  - id: e04-t09
+    story: S8
+    owner: human
+    title: Gate review
+    status: todo

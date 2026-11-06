@@ -1,0 +1,59 @@
+# Session state — read at session start, update at session end (see AGENTS.md).
+schema_version: 1
+workflow_mode: team-pr          # team-pr | solo-git
+project: fleetassistant
+domain: fleetassistant
+
+phase: build                     # discover | elaborate | plan | build | verify | release
+current:
+  epic: e04-haeo-bridge
+  deliverable: D04
+  status: in-progress
+  step: spike                    # context-check | draft | verify | review | fix | gate | accepted
+
+next_action: >
+  Run the e04 spike (.pi/skills/haeo-bridge-contract). Read HAEO v0.5.0's config-flow
+  schema (config_flow.py + flows/*.py at the pinned tag) and a live instance, then fill
+  haeo_bridge/plan.py:DEFAULT_TYPE_MAP, HubPlan.options keys, pricing/series.py
+  FORECAST_FORMAT_VERIFIED and pricing/compiler.py INPUT_NAMES_VERIFIED. Flip
+  HaeoTypeMap.verified and turn the xfail(strict=True) tests in
+  tests/contract/haeo/test_live_haeo.py green. Nothing may be guessed to close these.
+
+implemented:
+  - date: 2026-11-05
+    summary: >
+      v1 core (profile schema + loader, HAEO bridge, pricing, adapters, executor, audit,
+      ledger, telemetry) and HA glue (config flow, options flow, runtime repairs),
+      102 tests passing, ruff and boundary probes clean.
+    entry: docs/updates/2026-11-05-code-increment-1.md
+
+human_decisions_pending:
+  - id: OQ-003
+    topic: License for integration and fleet cloud
+    needed_by: D02 gate
+  - id: SPIKE-LIVE-ACCESS
+    topic: Provide a live HA + HAEO v0.5.0 instance (or run the haeo-contract workflow) so OQ-002/OQ-006/OQ-007 can close
+    needed_by: e04 acceptance
+
+decisions:
+  - id: ADR-0012
+    date: 2026-11-05
+    summary: >
+      The bridge refuses to apply while HAEO names are unverified. Unverified facts are
+      represented as None/False plus an explicit issue code, never as a plausible guess.
+  - id: ADR-0011
+    date: 2026-11-05
+    summary: Product renamed from HA-OPENDERMS (domain openderms) to fleetassistant (domain fleetassistant) to match the repo. Resolves OQ-008.
+  - id: ADR-0001..ADR-0010
+    date: 2026-11-05
+    summary: Brief non-negotiables recorded as accepted ADRs.
+  - id: no-code-bootstrap
+    date: 2026-11-05
+    summary: >
+      Bootstrap created documentation and file structure only; implementation followed in a
+      separate session (superseded by the 2026-11-05 implemented entry above).
+
+last_session:
+  date: 2026-11-05
+  role: engineer (v1 core increment 1)
+  update_entry: docs/updates/2026-11-05-code-increment-1.md

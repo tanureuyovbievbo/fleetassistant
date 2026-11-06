@@ -1,0 +1,46 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Create a fleetassistant site",
+        "description": "One config entry = one site = one tenant boundary. HAEO is configured for you by the bridge; do not create hubs by hand in fleet mode.",
+        "data": {
+          "site_name": "Site name",
+          "site_id": "Site id (lowercase identifier)",
+          "deployment_profile": "Deployment profile"
+        }
+      }
+    },
+    "error": {
+      "invalid_profile": "The generated site profile failed validation. Check the repair issue for the exact path.",
+      "invalid_json": "The profile JSON could not be parsed.",
+      "invalid_profile_json": "The profile JSON failed validation. Check the repair issue for the exact path."
+    },
+    "abort": {
+      "already_configured": "This site id is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "fleetassistant options",
+        "description": "Edit the site profile or the HAEO hub options. Leave the profile JSON empty to keep the stored profile.",
+        "data": {
+          "relax_impossible_plans": "Relax impossible plans (HAEO hub setting)",
+          "preset_days": "Planning horizon preset (days)",
+          "profile_json": "Site profile JSON (advanced)"
+        }
+      }
+    },
+    "error": {
+      "invalid_json": "The profile JSON could not be parsed.",
+      "invalid_profile": "The profile JSON failed validation. Check the repair issue for the exact path."
+    }
+  },
+  "issues": {
+    "invalid_profile": {
+      "title": "fleetassistant site profile is invalid",
+      "description": "Site profile error at {path} ({code}): {message}. Fix the profile and reload the {entry} integration."
+    }
+  }
+}
