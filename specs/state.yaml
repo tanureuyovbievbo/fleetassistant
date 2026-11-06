@@ -118,7 +118,7 @@ last_session:
   summary: >
     Licence settled by the human: Apache-2.0 (ADR-0023) with LICENSE, NOTICE,
     pyproject declaration and tests/unit/test_licensing.py; OQ-003 removed from
-    human_decisions_pending. Copyright holder left blank (RL-33). 315 tests passing.
+    human_decisions_pending. Copyright holder left blank (RL-33). 312 tests passing.
 
 decisions:
   - id: ADR-0023
