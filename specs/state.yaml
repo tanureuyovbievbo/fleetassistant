@@ -12,15 +12,26 @@ current:
   step: fix                    # context-check | draft | verify | review | fix | gate | accepted
 
 next_action: >
-  Prices are published and merged: one sensor per price input (HAEO-shaped forecast
-  attribute plus provenance) fed by a user schedule and, when one exists, a cloud
-  quote under an explicit per-site authority with staleness fallback (ADR-0019). The
-  cloud fetcher itself does not exist (RL-20) and divergences raise no repair yet
-  (RL-22). Next concrete step: the adapter for one vendor tariff feed with its quota
-  math recorded first (C-22), or OQ-022 (who supplies a charger's run-window
-  calendar) — whichever the next session can verify against a primary source.
+  The control path is closed end to end: controls bind to real entities, every
+  reference is checked at setup, and a fresh plan is dispatched through the safety
+  pipeline while silence fails safe once (ADR-0021). What is still missing is the
+  feedback half — nothing publishes telemetry, so a dispatch sequence is auditable in
+  the local log and invisible to the fleet (D07/e07, RL-27). Next concrete step: the
+  telemetry publisher that turns dispatch outcomes, HAEO plan values and read-back
+  into envelope-v1 records on a cadence, with the source authority rule (gateway >
+  vendor cloud) enforced in code and the payload validated before it leaves the box.
 
 implemented:
+  - date: 2026-11-06
+    summary: >
+      Dispatch loop (ADR-0021): a fresh plan (<= 15 min) is applied through the safety
+      pipeline on a 60 s timer; 30 min of optimizer silence writes the declared
+      fail-safe setpoints once per outage; a good plan clears the lockout; unload
+      forces the fallback. Plans come from entities the installer mapped
+      (plan_entity), never from guessed HAEO ids. Read-back now asks the state machine
+      (RL-23 closed). 213 tests pass. Open: RL-26 (no contactor), RL-27 (no read
+      quality), RL-28 (fixed cadence), OQ-022 (which entity carries a plan value).
+    entry: docs/updates/2026-11-06-dispatch-loop.md
   - date: 2026-11-06
     summary: >
       Dual tariff sources merged under an explicit authority (cloud | user |

@@ -31,7 +31,15 @@ epics:
     note: "providers, overlays, compiler, degradation term implemented; HAEO representation unverified (OQ-012)"
   e06:
     status: in-progress
-    note: "interface + safety pipeline + API and Modbus stubs implemented; vendor adapters not started"
+    note: "interface, safety pipeline, stubs, HA-entity adapters, read-back and the dispatch loop implemented (ADR-0021); vendor adapters and set_charging_schedule not started"
+    stories:
+      S1-interface: { status: done }
+      S2-safety: { status: done, note: "consent → clamp → consent-gated rate limit → hysteresis → adapter (order recorded in ADR-0020)" }
+      S3-stubs: { status: done }
+      S4-ha-adapters: { status: done, note: "switch/number/climate bindings; unsupported capability refused at construction" }
+      S5-readback: { status: partial, note: "reads the state machine; no timestamp or quality flag (RL-27)" }
+      S6-dispatch: { status: done, note: "fresh-plan window, grace period, fail-safe once, unload forces fallback (ADR-0021)" }
+      S7-failsafe-hardware: { status: not-started, note: "contactor + local automations on gateway sites (C-20, RL-26)" }
   e07:
     status: in-progress
     note: "envelope v1, validator, dedupe, summary implemented; publisher transport not started"

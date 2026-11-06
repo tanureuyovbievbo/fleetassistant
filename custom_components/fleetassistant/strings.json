@@ -30,7 +30,8 @@
           "preset_days": "Planning horizon (days)",
           "apply_haeo_plan": "Write the plan to HAEO now (provisioning)",
           "profile_json": "Site profile JSON (optional)",
-          "price_authority": "Price authority"
+          "price_authority": "Price authority",
+          "dispatch_enabled": "Drive local controls from the optimizer plan (gateway sites)"
         },
         "data_description": {
           "relax_impossible_plans": "Tells HAEO to return an approximate plan instead of no plan when constraints cannot all be met. Fleet reliability prefers an approximate plan.",
@@ -62,6 +63,10 @@
     "control_unbound": {
       "title": "fleetassistant cannot reach a control",
       "description": "{path}: {message}. Add the entity id to that control in the site profile so the gateway can drive it."
+    },
+    "dispatch_failed_safe": {
+      "title": "fleetassistant fell back to safe defaults",
+      "description": "The {entry} site stopped receiving usable plans ({reason}) and its controls were set to their fail-safe values. Check the optimizer and the connection; dispatch resumes when a fresh plan arrives."
     }
   }
 }

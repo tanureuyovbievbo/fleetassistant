@@ -8,16 +8,30 @@ repair issues.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.util import dt as dt_util
 
 from .adapters.ha_caller import service_caller
 from .adapters.ha_services import build_ha_adapters
+from .adapters.safety import SafetyPipeline
 from .audit import AuditLog
-from .const import CONF_APPLY_HAEO_PLAN, DOMAIN, NAME
+from .const import (
+    CONF_APPLY_HAEO_PLAN,
+    CONF_DISPATCH_ENABLED,
+    DEFAULT_DISPATCH_ENABLED,
+    DISPATCH_INTERVAL_SECONDS,
+    DOMAIN,
+    NAME,
+)
+from .dispatch import Dispatcher, MappedPlanSource
+from .executor import Executor
 from .haeo_bridge import contracts
 from .haeo_bridge.apply import ApplyReport, apply_plan
 from .haeo_bridge.flows import FlowHaeoDriver
@@ -107,6 +121,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _check_references(hass, entry, runtime)
     _build_adapters(hass, entry, runtime)
+    _start_dispatch(hass, entry, runtime)
 
     if entry.options.get(CONF_APPLY_HAEO_PLAN):
         await _apply_profile(hass, entry, runtime)
@@ -178,13 +193,25 @@ def _snapshot(hass: HomeAssistant, entity_id: str) -> EntitySnapshot | None:
     return EntitySnapshot(state=state.state, forecast_points=points, unit=unit)
 
 
+def _consent_granted(profile: dict[str, Any]) -> bool:
+    consent = profile.get("consent") or {}
+    return isinstance(consent, dict) and consent.get("granted") is True
+
+
 def _build_adapters(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteRuntime) -> None:
     """Turn local-backed controls into adapters bound to their HA entities.
 
     No write happens here: adapters are constructed so the executor has somewhere
     to send a plan, and an unbound control becomes a repair instead of a crash.
     """
-    runtime.adapters, issues = build_ha_adapters(runtime.profile, service_caller(hass))
+    runtime.adapters, issues = build_ha_adapters(
+        runtime.profile,
+        service_caller(hass),
+        reader=lambda entity_id: _entity_state(hass, entity_id),
+    )
+    # The pipeline owns consent, clamping, rate limits and hysteresis — the
+    # dispatcher never writes around it.
+    runtime.safety = SafetyPipeline(runtime.adapters, runtime.audit, consent_granted=_consent_granted(runtime.profile))
     runtime.issues.extend(issues)
     for index, issue in enumerate(issues):
         ir.async_create_issue(
@@ -202,6 +229,68 @@ def _build_adapters(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteRuntim
             "adapters": sorted(runtime.adapters),
             "unbound": [f"{i.path}: {i.message}" for i in issues],
         },
+    )
+
+
+def _entity_state(hass: HomeAssistant, entity_id: str) -> str | None:
+    state = hass.states.get(entity_id)
+    return None if state is None else state.state
+
+
+def _plan_mapping(runtime: SiteRuntime) -> list[tuple[str, str, str]]:
+    """(element, capability, plan entity) for every control that names one."""
+    mapping: list[tuple[str, str, str]] = []
+    for control in runtime.profile.get("controls") or []:
+        if not isinstance(control, Mapping):
+            continue
+        plan_entity = control.get("plan_entity")
+        if not isinstance(plan_entity, str) or not plan_entity:
+            continue
+        mapping.append((str(control.get("element")), str(control.get("capability")), plan_entity))
+    return mapping
+
+
+def _start_dispatch(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteRuntime) -> None:
+    """Run the dispatch loop on a timer, if the site asked for it.
+
+    Off by default: a site that has not mapped any plan entity has nothing to
+    dispatch, and a timer that fails safe every minute is worse than no timer. Even
+    when enabled, the loop only acts on entities the installer named — HAEO's own
+    entity ids are never guessed (ADR-0012).
+    """
+    if not entry.options.get(CONF_DISPATCH_ENABLED, DEFAULT_DISPATCH_ENABLED):
+        return
+    if runtime.safety is None or not runtime.adapters:
+        runtime.audit.append("dispatch.disabled", {"reason": "no local adapters to drive"})
+        return
+
+    dispatcher = Dispatcher(Executor(runtime.safety), runtime.audit)
+    source = MappedPlanSource(lambda entity_id: _entity_state(hass, entity_id), _plan_mapping(runtime))
+    runtime.dispatcher = dispatcher
+    runtime.dispatch_source = source
+
+    async def _tick(now: Any) -> None:
+        outcome = await hass.async_add_executor_job(dispatcher.tick, source, dt_util.utcnow())
+        runtime.dispatch_state.record(outcome)
+        if outcome.action == "failed_safe":
+            ir.async_create_issue(
+                hass,
+                DOMAIN,
+                f"{entry.entry_id}_fail_safe",
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="dispatch_failed_safe",
+                translation_placeholders={"entry": NAME, "reason": outcome.reason},
+            )
+        elif outcome.action == "applied":
+            ir.async_delete_issue(hass, DOMAIN, f"{entry.entry_id}_fail_safe")
+
+    runtime.dispatch_unsub = async_track_time_interval(
+        hass, callback(_tick), timedelta(seconds=DISPATCH_INTERVAL_SECONDS)
+    )
+    runtime.audit.append(
+        "dispatch.started",
+        {"interval_seconds": DISPATCH_INTERVAL_SECONDS, "setpoints": len(_plan_mapping(runtime))},
     )
 
 
@@ -253,6 +342,18 @@ async def _apply_profile(hass: HomeAssistant, entry: ConfigEntry, runtime: SiteR
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if runtime is not None:
+        unsub = getattr(runtime, "dispatch_unsub", None)
+        if unsub is not None:
+            unsub()
+        dispatcher = getattr(runtime, "dispatcher", None)
+        if dispatcher is not None:
+            # Leaving devices at the optimizer's last instruction while we go away
+            # is the one thing a fail-safe exists to prevent.
+            await hass.async_add_executor_job(
+                lambda: dispatcher.fail_safe_once(now=dt_util.utcnow(), reason="integration unloading")
+            )
     unloaded = await hass.config_entries.async_unload_platforms(entry, ["sensor"])
     hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
     return unloaded

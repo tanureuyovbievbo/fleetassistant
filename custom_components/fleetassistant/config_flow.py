@@ -15,8 +15,10 @@ from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
     CONF_APPLY_HAEO_PLAN,
+    CONF_DISPATCH_ENABLED,
     CONF_PRICE_AUTHORITY,
     DEFAULT_APPLY_HAEO_PLAN,
+    DEFAULT_DISPATCH_ENABLED,
     DEFAULT_RELAX_IMPOSSIBLE_PLANS,
     DOMAIN,
     NAME,
@@ -105,6 +107,9 @@ class FleetassistantOptionsFlow(OptionsFlow):
                         "relax_impossible_plans": bool(user_input["relax_impossible_plans"]),
                         "preset_days": int(user_input["preset_days"]),
                         CONF_APPLY_HAEO_PLAN: bool(user_input.get(CONF_APPLY_HAEO_PLAN, DEFAULT_APPLY_HAEO_PLAN)),
+                        CONF_DISPATCH_ENABLED: bool(
+                            user_input.get(CONF_DISPATCH_ENABLED, DEFAULT_DISPATCH_ENABLED)
+                        ),
                         CONF_PRICE_AUTHORITY: str(user_input.get(CONF_PRICE_AUTHORITY) or "").strip(),
                         "profile_json": str(user_input.get("profile_json") or ""),
                     },
@@ -123,7 +128,12 @@ class FleetassistantOptionsFlow(OptionsFlow):
                     ),
                     vol.Required(
                         CONF_APPLY_HAEO_PLAN,
+    CONF_DISPATCH_ENABLED,
                         default=current.get(CONF_APPLY_HAEO_PLAN, DEFAULT_APPLY_HAEO_PLAN),
+                    ): bool,
+                    vol.Required(
+                        CONF_DISPATCH_ENABLED,
+                        default=current.get(CONF_DISPATCH_ENABLED, DEFAULT_DISPATCH_ENABLED),
                     ): bool,
                     vol.Optional(
                         CONF_PRICE_AUTHORITY, default=current.get(CONF_PRICE_AUTHORITY, "")

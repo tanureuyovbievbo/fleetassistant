@@ -27,7 +27,13 @@ DEFAULT_RELAX_IMPOSSIBLE_PLANS = True
 #: instance accepts our element payloads (OQ-017), provisioning must not fire.
 #: RL-14: when it is on, provisioning runs once per setup — no drift repair yet.
 CONF_APPLY_HAEO_PLAN = "apply_haeo_plan"
+CONF_DISPATCH_ENABLED = "dispatch_enabled"
+
+#: How often the dispatcher looks at the optimizer's plan. One minute is fast
+#: enough for a 5-minute control cadence and slow enough to be invisible.
+DISPATCH_INTERVAL_SECONDS = 60
 DEFAULT_APPLY_HAEO_PLAN = False
+DEFAULT_DISPATCH_ENABLED = False
 
 #: Which tariff source wins when a site has both a cloud quote and a user
 #: schedule (ADR-0019). Empty means "the deployment profile's default".

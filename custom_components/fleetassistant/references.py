@@ -31,6 +31,7 @@ REFERENCE_KEYS: dict[str, Requirement] = {
     "connected_entity": "entity",
     "current_soc_entity": "entity",
     "window_calendar": "calendar",
+    "plan_entity": "entity",
 }
 
 PRICE_REFERENCE_KEYS = frozenset({"import_price_entity", "export_price_entity"})

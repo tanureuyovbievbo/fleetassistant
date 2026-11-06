@@ -5,12 +5,18 @@
 | ID | D06 |
 | Epic | e06-control-adapters |
 | Version | 0.0.0 (stub) |
-| Status | implemented (stubs only) |
+| Status | implemented (stubs + local HA entities; schedule capability open) |
 | Owner role | architect (design) → engineer (code) |
-| Last updated | 2026-11-05 |
+| Last updated | 2026-11-06 |
 | Depends on | D01, D03, C-09, C-12, C-15, C-16, C-18, C-24, ADR-0002, OQ-005, OQ-013 |
 
-> **Implementation:** capability descriptors, safety pipeline, executor with fail-safe, API and Modbus stub adapters; no vendor adapters yet.
+> **Implementation:** capability descriptors, safety pipeline, executor with
+> fail-safe, API and Modbus stub adapters, adapters over HA entities
+> (`switch`/`number`/`climate` via an injected service caller), read-back from the
+> state machine, and the dispatch loop that applies a fresh plan and fails safe
+> once when the optimizer goes quiet (ADR-0021). No vendor adapters yet; the
+> `set_charging_schedule` capability is declared but has no binding, so a control
+> that needs it is refused at setup rather than silently unmanaged.
 >
 > The outline below remains the acceptance contract; code lands against it.
 >
@@ -37,7 +43,8 @@
 
 ## Acceptance criteria
 
-- [ ] One shared contract test suite runs against both stubs.
-- [ ] Out-of-range, no-consent, and rate-limited writes are rejected with a reason and an audit record.
-- [ ] No module outside `adapters/` performs a device write (CI grep or import-linter rule).
+- [x] One shared contract test suite runs against both stubs.
+- [x] A third implementation (HA entities) passes the same behaviour tests.
+- [x] Out-of-range, no-consent, and rate-limited writes are rejected with a reason and an audit record.
+- [x] No module outside `adapters/` performs a device write (`tools/check_boundaries.py`, C-09).
 - [ ] Human review gate passed.

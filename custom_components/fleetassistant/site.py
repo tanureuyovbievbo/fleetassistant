@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .audit import AuditLog
+from .dispatch import DispatchState
 from .haeo_bridge.plan import NetworkPlan
 from .profile.schema import Issue
 
@@ -30,6 +31,13 @@ class SiteRuntime:
     adapters: dict[str, Any] = field(default_factory=dict)
     #: Repairs raised for entity references, so they can be cleared on reload.
     reference_repairs: list[str] = field(default_factory=list)
+    #: Consent, clamping, rate limits and hysteresis in front of every adapter.
+    safety: Any = None
+    #: The dispatch loop, when the site enabled it.
+    dispatcher: Any = None
+    dispatch_source: Any = None
+    dispatch_unsub: Any = None
+    dispatch_state: DispatchState = field(default_factory=DispatchState)
 
     @property
     def site_id(self) -> str:
@@ -58,6 +66,7 @@ class SiteRuntime:
             "references": [
                 {"entity_id": r.entity_id, "requirement": r.requirement, "path": r.path} for r in self.references
             ],
+            "dispatch": self.dispatch_state.as_dict(),
             "control_adapters": {
                 element: {
                     "adapter_id": adapter.adapter_id,

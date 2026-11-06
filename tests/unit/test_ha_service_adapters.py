@@ -196,3 +196,45 @@ def test_api_backed_controls_are_not_bound_locally():
     adapters, issues = build_ha_adapters(example("tesla_cloud_primary.yaml"), Recorder())
     assert adapters == {}
     assert issues == []
+
+
+# --- read-back --------------------------------------------------------------
+
+
+def test_read_state_prefers_the_device_over_the_last_write():
+    caller = Recorder()
+    states = {"number.solark_export_limit": "4.0"}
+    adapter = HaServiceAdapter(
+        "grid",
+        caller,
+        {"set_export_limit": capability_from_control(_control())},
+        {"set_export_limit": NumberBinding("number.solark_export_limit")},
+        reader=states.get,
+    )
+    adapter.write("set_export_limit", 7.0)  # the device did not take it
+    assert adapter.read_state()["set_export_limit"] == 4.0
+
+
+def test_read_state_falls_back_to_the_last_write_when_the_entity_is_gone():
+    caller = Recorder()
+    adapter = HaServiceAdapter(
+        "grid",
+        caller,
+        {"set_export_limit": capability_from_control(_control())},
+        {"set_export_limit": NumberBinding("number.gone")},
+        reader=lambda entity_id: None,
+    )
+    adapter.write("set_export_limit", 6.0)
+    assert adapter.read_state()["set_export_limit"] == 6.0
+
+
+def test_a_switch_state_is_read_back_as_zero_or_one():
+    caller = Recorder()
+    adapter = HaServiceAdapter(
+        "relay",
+        caller,
+        {"shed_circuit": capability_from_control(_control(capability="shed_circuit", unit="bool", min=0, max=1))},
+        {"shed_circuit": SwitchBinding("switch.water_heater")},
+        reader={"switch.water_heater": "off"}.get,
+    )
+    assert adapter.read_state()["shed_circuit"] == 0.0

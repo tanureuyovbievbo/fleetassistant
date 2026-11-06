@@ -455,7 +455,7 @@ def _validate_controls(
             "backing",
             "fail_safe_value",
         )
-        if not c.mapping(path, control, required, ("notes", "authority", "entity_id", "scale")):
+        if not c.mapping(path, control, required, ("notes", "authority", "entity_id", "scale", "plan_entity")):
             continue
         cid = c.slug(f"{path}.id", control.get("id"))
         if cid is not None:
@@ -498,6 +498,12 @@ def _validate_controls(
                 c.warn("entity_id_unused", f"{path}.entity_id", "api-backed controls are addressed by the adapter, not by entity id")
             if entity_id is None and backing == "local":
                 c.warn("entity_id_missing", f"{path}.entity_id", "local-backed control names no entity; it cannot be bound")
+        if "plan_entity" in control:
+            # The entity HAEO publishes this control's setpoint to. Named by the
+            # installer, never guessed from HAEO's internals (ADR-0012).
+            plan_entity = c.text(f"{path}.plan_entity", control.get("plan_entity"), max_len=120)
+            if plan_entity is not None and not ENTITY_ID_RE.match(plan_entity):
+                c.error("entity_id", f"{path}.plan_entity", f"{plan_entity!r} is not an entity id")
         if "scale" in control:
             c.number(f"{path}.scale", control.get("scale"), minimum=0.000001, maximum=1000000)
         c.number(f"{path}.rate_limit_per_minute", control.get("rate_limit_per_minute"), minimum=1, maximum=600)

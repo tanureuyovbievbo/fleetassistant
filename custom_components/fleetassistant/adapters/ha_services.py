@@ -16,9 +16,11 @@ Three deliberate choices:
 * **Bindings are explicit data.** ``switch.turn_off`` vs ``number.set_value`` is
   decided per capability by a binding object, not by guessing from the entity
   domain. A capability with no binding is refused at construction, not at 2 a.m.
-* **Read-back is not invented.** ``read_state`` reports only what this adapter
-  last wrote. Reading the real state needs the state machine, arrives with the
-  executor (RL-23), and is honestly absent until then.
+* **Read-back comes from the device.** ``read_state`` asks the state machine for
+  the entity's current value and falls back to the last write only when the entity
+  is missing or unreadable — so a write that silently failed no longer looks
+  applied (closed by ADR-0021; a read value still carries no timestamp or quality —
+  RL-27).
 """
 
 from __future__ import annotations
@@ -119,6 +121,7 @@ class HaServiceAdapter(ControlAdapter):
         bindings: Mapping[str, ServiceBinding],
         *,
         label: str = "",
+        reader: Callable[[str], str | None] | None = None,
     ) -> None:
         self.adapter_id = adapter_id
         self.label = label or adapter_id
@@ -131,13 +134,41 @@ class HaServiceAdapter(ControlAdapter):
         if missing:
             raise AdapterError(f"{adapter_id}: no service binding for {sorted(missing)}")
         self._last: dict[str, float] = {}
+        self._reader = reader
+        self._entity_by_capability = {
+            name: getattr(binding, "entity_id", "") for name, binding in self._bindings.items()
+        }
 
     def capabilities(self) -> Mapping[str, Capability]:
         return dict(self._capabilities)
 
     def read_state(self) -> Mapping[str, float]:
-        """Last value written by this adapter — not the device's real state (RL-23)."""
-        return dict(self._last)
+        """The device's value where the state machine can tell us, else the last write."""
+        state: dict[str, float] = {}
+        for capability, entity_id in self._entity_by_capability.items():
+            value = self._read_entity(entity_id)
+            if value is not None:
+                state[capability] = value
+        if not state:
+            return dict(self._last)
+        return {**self._last, **state}
+
+    def _read_entity(self, entity_id: str) -> float | None:
+        if not entity_id or self._reader is None:
+            return None
+        raw = self._reader(entity_id)
+        if raw is None:
+            return None
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            # A switch reports on/off; map it to the 0/1 our capabilities use.
+            lowered = str(raw).strip().lower()
+            if lowered in {"on", "open", "heat", "cool"}:
+                return 1.0
+            if lowered in {"off", "closed", "idle"}:
+                return 0.0
+            return None
 
     def write(self, capability: str, value: float) -> float:
         binding = self._bindings.get(capability)
@@ -188,6 +219,8 @@ def binding_for(control: Mapping[str, Any]) -> ServiceBinding:
 def build_ha_adapters(
     profile: Mapping[str, Any],
     caller: ServiceCaller,
+    *,
+    reader: Callable[[str], str | None] | None = None,
 ) -> tuple[dict[str, HaServiceAdapter], list[Issue]]:
     """Build one adapter per local-backed control, grouped by element.
 
@@ -216,5 +249,5 @@ def build_ha_adapters(
             capability = capability_from_control(control)
             capabilities[capability.name] = capability
             bindings[capability.name] = binding_for(control)
-        adapters[element] = HaServiceAdapter(element, caller, capabilities, bindings, label=element)
+        adapters[element] = HaServiceAdapter(element, caller, capabilities, bindings, label=element, reader=reader)
     return adapters, issues

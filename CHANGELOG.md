@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Dispatch loop (`dispatch.py`, ADR-0021): a plan older than 15 minutes is
+  discarded, 30 minutes of optimizer silence writes the per-capability fail-safe
+  **once** per outage, a good plan clears the lockout, and unloading the entry
+  forces the fallback. Diagnostics expose the last ten outcomes; the audit chain
+  records `dispatch.apply` / `dispatch.fail_safe`.
+- `MappedPlanSource`: a plan is built from the entities each control names in
+  `plan_entity`. A non-numeric state is skipped, never coerced to zero; a missing
+  mapping produces a repair, not a guess at HAEO's entity ids (OQ-022).
+- Options toggle `dispatch_enabled` (default off) and the `dispatch_failed_safe`
+  repair, cleared automatically when a plan is applied again.
+- `HaServiceAdapter.read_state` now reads the state machine through an injected
+  reader and falls back to the last write only when the entity is missing or
+  unreadable (closes RL-23; residual gaps RL-26..RL-28).
 - Review register `docs/verification/REVIEW_LATER.md` (18 deliberate gaps, each with
   file, trigger and owner) plus `tests/unit/test_review_register.py`, which fails when
   a code reference `RL-xx` has no row or a row has no trigger/owner.
@@ -115,6 +128,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Placeholder directories for the integration, site profiles, rule packs, fleet services, and tests. No implementation code.
 
 ### Changed
+- Review register: RL-23 closed; RL-26 (fail-safe is not a hardware net), RL-27
+  (read-back has no quality flag) and RL-28 (fixed 60 s cadence) opened.
 - **Efficiency units closed (OQ-021).** HAEO's segment computes `output = input *
   efficiency` and documents the field as a 0..1 ratio, while its own default is
   `95.0`. The bridge now always writes efficiency as a ratio (`92.5` → `0.925`,
