@@ -20,3 +20,4 @@ Format: Context · Decision · Consequences · Rejected alternatives. New ADRs t
 | [ADR-0014](ADR-0014-flow-driven-provisioning.md) | Provision HAEO by answering its flows, never by writing its records | accepted |
 
 Next ADRs expected: license decision (D02, OQ-003), per-element field map (D04, OQ-017), Modbus access path (D06, OQ-013), fleet stack (D08).
+| [ADR-0015](ADR-0015-topology-as-connection-fields.md) | Topology is a per-element `connection` field; the bridge never prunes | accepted | 2026-11-05 |

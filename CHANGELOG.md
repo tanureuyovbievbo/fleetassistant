@@ -5,6 +5,25 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- HAEO element field table (`haeo_bridge/fields.py`) recorded from the pinned v0.5.0
+  schemas: tagged `entity`/`constant` values, section names (`power_limits`,
+  `pricing`, `forecast`, `curtailment`, `storage`, `limits`, `efficiency`,
+  `advanced`, `vehicle`, `charging`), and the required/optional key per element.
+  Evidence: SOURCES S-021..S-028, FACTS F-040..F-049, `ELEMENT_FIELDS_LIVE_VERIFIED`
+  still `False`.
+- Topology renders into a per-element `connection` field (`connection_target`) with a
+  synthesised `<system>_bus` junction per system; the driver no longer has connection
+  read/write operations (ADR-0015).
+- `haeo_bridge/prevalidate.py` learns `haeo_field_missing`, `element_unconnected`,
+  `dangling_connection` (now also for a bad `connection` target) and the warning
+  `profile_key_unmapped`, so a profile key with no HAEO field is reported instead of
+  written.
+- `pricing.compiler.price_entity_id()` and `compile_plan(price_entities=...)`: grid
+  price fields are filled from the price sensors we publish, overridable per site.
+- `contracts.NON_ELEMENT_SUBENTRY_TYPES`, `CONNECTIONS_ARE_ELEMENT_FIELDS`,
+  `PRUNE_UNKNOWN_ELEMENTS` (False): HAEO's own switchboard junction is never deleted.
+
+### Added
 - HAEO flow driver (`haeo_bridge/flows.py`) that provisions hubs, elements and
   hub options by answering HAEO's config/options/subentry flows, plus its Home
   Assistant port (`haeo_bridge/ha_port.py`) which is the only module touching `hass`
@@ -28,7 +47,7 @@ All notable changes to this project are documented here. The format follows [Kee
   - `adapters/` — capability descriptors (limits, rate limit, hysteresis, consent, backing, authority, fail-safe), safety pipeline, and API-backed plus Modbus-backed stub adapters behind one contract.
   - `executor.py`, `audit.py`, `ledger.py`, `telemetry.py` — plan execution with staleness and fail-safe, SHA-256 hash-chained audit log, commitments ledger that rejects over-commitment, telemetry envelope v1 with dedupe and firm/estimated separation.
   - Home Assistant glue: `config_flow.py` (config + options), `runtime.py` (repairs on validation failure), `manifest.json` with zero pip requirements, `hacs.json`.
-- Tests: 114 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, pricing, adapters, executor, ledger, telemetry, boundary probes).
+- Tests: 127 passing (schema examples and broken variants, bridge plan/apply/idempotency/version gate, element field table and connectivity, flow driver against a fake port, pricing, adapters, executor, ledger, telemetry, boundary probes).
 - CI: `ci.yml` (ruff, boundary probes, pytest, hassfest, HACS validation, manifest pin check), `release.yml` (zip + release), `haeo-contract.yml` (manual live-HAEO contract run).
 
 ### Added

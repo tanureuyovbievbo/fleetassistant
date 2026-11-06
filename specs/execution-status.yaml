@@ -14,10 +14,11 @@ epics:
       S3-migrations: { status: open, note: "seam exists in profile/loader.py:migrate; no v2 yet" }
   e04:
     status: in-progress
-    note: "HAEO v0.5.0 surface recorded from source; flow driver and HA port implemented (ADR-0014); apply still blocked by OQ-017/OQ-018 and the live gate (ADR-0012)"
+    note: "HAEO v0.5.0 surface and per-element field table recorded from source (F-040..F-049); flow driver, HA port and topology-as-field implemented (ADR-0014, ADR-0015); apply still blocked by the live gate (ADR-0012) and OQ-018/OQ-019/OQ-020"
     stories:
       S1-spike: { status: in-progress, note: "source spike done (specs/archive/spikes/SPIKE-2026-11-05-haeo-v050-surface.md); live half blocked by SPIKE-LIVE-ACCESS" }
       S2-plan-compile: { status: done }
+      S7-fields: { status: partial, note: "field table, tagged values, connectivity and grid price wiring done offline (haeo_bridge/fields.py); units and acceptance await a live instance (OQ-017)" }
       S3-prevalidate: { status: done }
       S4-apply: { status: done, note: "diff/idempotency proven against InMemoryHaeoDriver and the flow driver over a fake port; runtime does not call it yet" }
       S6-ha-driver: { status: partial, note: "flows.py + ha_port.py written and unit-tested; live run blocked by OQ-017/OQ-018" }

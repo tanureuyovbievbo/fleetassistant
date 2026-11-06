@@ -146,7 +146,7 @@ CANDIDATE_KIND_TO_TYPE: Final[dict[str, str | None]] = {
     "solar": "solar",
     "battery": "battery",
     "load": "load",
-    "ev_charger": "ev",
+    "ev_charger": None,
     "meter": None,
     "thermostat": None,
     "relay": None,
@@ -157,22 +157,27 @@ UNRESOLVED_KINDS: Final[frozenset[str]] = frozenset(
     kind for kind, haeo_type in CANDIDATE_KIND_TO_TYPE.items() if haeo_type is None
 )
 
-#: Profile fields that HAEO stores as element inputs. The HAEO field names
-#: behind them are unresolved (they live in each element's schema sections), so
-#: the bridge carries them as declared inputs rather than writing guessed keys.
-INPUT_FIELD_NAMES_UNRESOLVED: Final = True
+#: Profile fields that HAEO stores as element inputs. ``fields.py`` records the
+#: section and field name of each; the mapping is source-verified and
+#: live-unverified (OQ-017).
+INPUT_FIELD_NAMES_UNRESOLVED: Final = False
 
-#: Subentry types that are not topology elements. HAEO's hub flow creates a
-#: ``network`` subentry on hub creation; anything else HAEO adds on its own is
-#: unreported (OQ-018), and reading it must stay harmless.
-NON_ELEMENT_SUBENTRY_TYPES: Final[frozenset[str]] = frozenset({"network", "connection"})
+#: Subentry type HAEO's hub flow creates on its own (``flows/hub.py``). It holds
+#: the network, not a power element, so it is never part of a network plan.
+NON_ELEMENT_SUBENTRY_TYPES: Final[frozenset[str]] = frozenset({"network"})
 
-#: HAEO represents a link between two elements as a subentry of this type, but
-#: the field names that carry source/target are not recorded yet (OQ-017). While
-#: that is true, the flow driver refuses to create or diff connections instead
-#: of writing guessed keys into a live hub.
-CONNECTION_SUBENTRY_TYPE: Final = "connection"
-CONNECTION_FIELDS_UNRESOLVED: Final = True
+#: HAEO has no connection record: ``ConnectedCommonConfig`` requires a
+#: ``connection`` field on each element, holding
+#: ``{"type": "connection_target", "value": "<junction name>"}``
+#: (``core/schema/sections/common.py``). Topology is therefore expressed by
+#: pointing elements at a junction, which is what ``fields.bus_name`` does.
+CONNECTIONS_ARE_ELEMENT_FIELDS: Final = True
+
+#: Whether an apply may delete elements it did not create. HAEO's hub flow
+#: creates a switchboard junction of its own, and we do not yet track which
+#: subentries we own, so pruning stays off and an unexpected element is reported
+#: instead of deleted (OQ-018).
+PRUNE_UNKNOWN_ELEMENTS: Final = False
 
 
 def is_known_element_type(haeo_type: str | None) -> bool:
@@ -218,8 +223,8 @@ __all__ = [
     "CONF_NAME",
     "CONF_RECORD_FORECASTS",
     "CONF_RELAX_INFEASIBLE",
-    "CONNECTION_FIELDS_UNRESOLVED",
-    "CONNECTION_SUBENTRY_TYPE",
+    "CONNECTIONS_ARE_ELEMENT_FIELDS",
+    "PRUNE_UNKNOWN_ELEMENTS",
     "CORE_INPUT_TYPES",
     "DEFAULT_DEBOUNCE_SECONDS",
     "DEFAULT_HORIZON_PRESET",

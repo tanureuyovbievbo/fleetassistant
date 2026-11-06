@@ -6,14 +6,24 @@ can be diffed, reviewed, and contract-tested before anything is applied.
 
 Serializable so the HA runtime can persist it. Immutable so a diff cannot
 mutate the plan it came from.
+
+Topology note: HAEO does not have connection entries. Each connected element
+carries ``connection = {"type": "connection_target", "value": "<junction name>"}``
+(``core/schema/sections/common.py``), so this module synthesises one junction
+element per system and points every connected element at it. The profile's
+``connections`` list stays in the plan for readable review and for schema-level
+integrity checks, but nothing is written for it: it is expressed through the
+element fields.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from . import contracts
+from ..pricing.compiler import INPUT_NAMES, price_entity_id
+from . import contracts, fields
 
 HorizonMode = Literal["preset", "forecast_sensor"]
 
@@ -23,6 +33,9 @@ HorizonMode = Literal["preset", "forecast_sensor"]
 #: choice* for ``meter``/``thermostat``/``relay`` is not, so those kinds stay
 #: ``None`` and block an apply (C-23, OQ-002). Do not fill them from memory.
 DEFAULT_TYPE_MAP: dict[str, str | None] = dict(contracts.CANDIDATE_KIND_TO_TYPE)
+
+#: Kinds HAEO models as a node in the power network, so they need a connection.
+CONNECTED_KINDS = frozenset({"grid", "battery", "load", "solar", "ev_charger"})
 
 
 @dataclass(frozen=True)
@@ -111,21 +124,36 @@ class HubPlan:
 
 @dataclass(frozen=True)
 class ElementPlan:
+    """One HAEO element: what we write, and what we could not fill."""
+
     system_id: str
     name: str
     kind: str
     haeo_type: str | None
-    params: dict[str, Any]
-    inputs: dict[str, Any]
+    sections: dict[str, dict[str, Any]] = field(default_factory=dict)
+    connection: str | None = None
+    missing_fields: tuple[tuple[str, str], ...] = ()
+    ignored_keys: tuple[str, ...] = ()
+    #: Profile keys HAEO has no field for but the site still needs (degradation
+    #: cost, vendor identity). Kept for checks and diagnostics, never written.
+    profile_extras: dict[str, Any] = field(default_factory=dict)
 
     @property
     def identity(self) -> str:
         """Stable key used for idempotent diffing (name, not HAEO entry id)."""
         return f"{self.system_id}:{self.name}"
 
+    def payload(self) -> dict[str, Any]:
+        """Element data as HAEO stores it (requires a resolved ``haeo_type``)."""
+        if self.haeo_type is None:
+            raise ValueError(f"element {self.name!r} has no HAEO type (OQ-002)")
+        return fields.element_payload(self.name, self.haeo_type, self.sections, self.connection)
+
 
 @dataclass(frozen=True)
 class ConnectionPlan:
+    """A profile-declared link. Kept for review and integrity checks only."""
+
     system_id: str
     source: str
     target: str
@@ -147,6 +175,9 @@ class NetworkPlan:
     type_map: HaeoTypeMap
     source_schema_version: int = 1
     generated_by: str = "fleetassistant"
+
+    def elements_of(self, system_id: str) -> tuple[ElementPlan, ...]:
+        return tuple(element for element in self.elements if element.system_id == system_id)
 
     # -- serialization ------------------------------------------------------
     def as_dict(self) -> dict[str, Any]:
@@ -178,8 +209,11 @@ class NetworkPlan:
                     "name": e.name,
                     "kind": e.kind,
                     "haeo_type": e.haeo_type,
-                    "params": e.params,
-                    "inputs": e.inputs,
+                    "sections": e.sections,
+                    "connection": e.connection,
+                    "missing_fields": [list(m) for m in e.missing_fields],
+                    "ignored_keys": list(e.ignored_keys),
+                    "profile_extras": e.profile_extras,
                 }
                 for e in self.elements
             ],
@@ -220,8 +254,11 @@ class NetworkPlan:
                     name=e["name"],
                     kind=e["kind"],
                     haeo_type=e.get("haeo_type"),
-                    params=dict(e.get("params", {})),
-                    inputs=dict(e.get("inputs", {})),
+                    sections={section: dict(values) for section, values in e.get("sections", {}).items()},
+                    connection=e.get("connection"),
+                    missing_fields=tuple(tuple(item) for item in e.get("missing_fields", [])),
+                    ignored_keys=tuple(e.get("ignored_keys", [])),
+                    profile_extras=dict(e.get("profile_extras", {})),
                 )
                 for e in data.get("elements", [])
             ),
@@ -237,14 +274,46 @@ class NetworkPlan:
         )
 
 
-#: Profile element fields that become HAEO *inputs* (runtime-writable constants).
-#: HAEO creates an input entity per configured field (brief), so these can be
-#: changed at runtime without reconfiguring the element. Key names UNVERIFIED.
-_INPUT_FIELDS = ("capacity_kwh", "min_soc_pct", "max_soc_pct", "import_limit_kw", "export_limit_kw")
+#: Profile element key -> the compiled price input that fills it.
+PRICE_ENTITY_FIELDS = {
+    "import_price_entity": INPUT_NAMES["import"],
+    "export_price_entity": INPUT_NAMES["export"],
+}
 
 
-def compile_plan(profile: dict[str, Any], type_map: HaeoTypeMap | None = None) -> NetworkPlan:
+def _with_price_entities(
+    element: dict[str, Any],
+    site_id: str,
+    overrides: Mapping[str, Mapping[str, str]] | None,
+) -> dict[str, Any]:
+    """Point a grid element at the price sensors we publish.
+
+    A grid element cannot be created without directional prices, and the profile
+    carries rate *providers*, not entity ids. So the compiler fills them with the
+    ids of the forecast sensors the pricing compiler emits, unless the caller
+    passes explicit ids (``price_entities``) for a site that already has them.
+    """
+    if element["kind"] != "grid":
+        return element
+    explicit = dict((overrides or {}).get(element["id"], {}))
+    filled = dict(element)
+    for key, input_name in PRICE_ENTITY_FIELDS.items():
+        filled.setdefault(key, explicit.get(key) or price_entity_id(site_id, input_name))
+    return filled
+
+
+def compile_plan(
+    profile: dict[str, Any],
+    type_map: HaeoTypeMap | None = None,
+    *,
+    price_entities: Mapping[str, Mapping[str, str]] | None = None,
+) -> NetworkPlan:
     """Compile a validated profile into a network plan.
+
+    ``price_entities`` overrides the price sensor ids per element id, for sites
+    that already publish them (keys ``import_price_entity`` /
+    ``export_price_entity``). Without it, grid elements point at the sensors the
+    pricing compiler emits for this site.
 
     Raises ``ValueError`` if the profile is structurally unusable. It does not
     run schema validation — call ``profile.validate_profile`` first (the
@@ -272,21 +341,26 @@ def compile_plan(profile: dict[str, Any], type_map: HaeoTypeMap | None = None) -
                 relax_impossible_plans=bool(profile.get("deployment", {}).get("relax_impossible_plans", True)),
             )
         )
-        for element in system["elements"]:
-            params = {
-                key: value
-                for key, value in element.items()
-                if key not in ("id", "kind", "name", "notes")
-            }
-            inputs = {key: params[key] for key in _INPUT_FIELDS if key in params}
+        elements.append(_bus_element(system_id))
+        for raw_element in system["elements"]:
+            element = _with_price_entities(raw_element, profile["site"]["id"], price_entities)
+            kind = element["kind"]
+            compiled = fields.compile_element_fields(element, tm.lookup(kind))
             elements.append(
                 ElementPlan(
                     system_id=system_id,
                     name=element["id"],
-                    kind=element["kind"],
-                    haeo_type=tm.lookup(element["kind"]),
-                    params=params,
-                    inputs=inputs,
+                    kind=kind,
+                    haeo_type=tm.lookup(kind),
+                    sections=compiled.sections,
+                    connection=fields.bus_name(system_id) if kind in CONNECTED_KINDS else None,
+                    missing_fields=compiled.missing,
+                    ignored_keys=compiled.ignored,
+                    profile_extras={
+                        key: value
+                        for key, value in element.items()
+                        if key in fields.PROFILE_ONLY_KEYS and key not in ("id", "kind", "name", "notes", "haeo_name")
+                    },
                 )
             )
         for connection in system.get("connections", []):
@@ -307,4 +381,16 @@ def compile_plan(profile: dict[str, Any], type_map: HaeoTypeMap | None = None) -
         elements=tuple(elements),
         connections=tuple(connections),
         type_map=tm,
+    )
+
+
+def _bus_element(system_id: str) -> ElementPlan:
+    """The junction every connected element of a system points at."""
+    return ElementPlan(
+        system_id=system_id,
+        name=fields.bus_name(system_id),
+        kind="junction",
+        haeo_type=fields.JUNCTION_TYPE,
+        sections={},
+        connection=None,
     )

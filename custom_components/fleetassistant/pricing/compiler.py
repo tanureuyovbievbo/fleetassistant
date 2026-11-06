@@ -11,6 +11,7 @@ one ``metadata`` block so the spike can correct it in a single place.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
@@ -23,6 +24,19 @@ from .series import Point, build_series, to_forecast
 #: HAEO price input names. UNVERIFIED until the e04 spike (OQ-007).
 INPUT_NAMES = {"import": "price_import", "export": "price_export", "degradation": "battery_degradation_cost"}
 INPUT_NAMES_VERIFIED = False
+
+
+def price_entity_id(site_id: str, input_name: str) -> str:
+    """Entity id of the forecast sensor we publish for a compiled price input.
+
+    These sensors are ours (the telemetry publisher creates them), so the naming
+    is a choice, not a HAEO fact. HAEO's grid element consumes them as
+    ``pricing.price_source_target`` / ``price_target_source``; a site that
+    already publishes equivalent sensors can override the ids with
+    ``compile_plan(..., price_entities=...)``.
+    """
+    slug = re.sub(r"[^a-z0-9]+", "_", site_id.lower()).strip("_") or "site"
+    return f"sensor.fleetassistant_{slug}_{input_name}"
 
 
 @dataclass

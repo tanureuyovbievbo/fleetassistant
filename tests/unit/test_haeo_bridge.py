@@ -19,7 +19,8 @@ from custom_components.fleetassistant.haeo_bridge.plan import (
 from custom_components.fleetassistant.haeo_bridge.prevalidate import prevalidate
 
 #: Stand-in for a live-confirmed mapping: real HAEO element types where the
-#: correspondence is unambiguous, a junction for the kinds still under decision.
+#: correspondence is unambiguous, a junction for the kinds still under decision
+#: (a junction carries no fields, so it stands in without faking a model).
 VERIFIED_MAP = HaeoTypeMap(
     types={kind: haeo_type or "junction" for kind, haeo_type in CANDIDATE_KIND_TO_TYPE.items()},
     verified=True,
@@ -33,7 +34,7 @@ def test_compile_plan_from_gateway_example() -> None:
     assert len(plan.hubs) == 1
     assert plan.hubs[0].relax_impossible_plans is True
     names = {e.name for e in plan.elements}
-    assert {"grid", "battery", "ev", "hvac"} <= names
+    assert {"main_bus", "grid", "battery", "ev", "hvac"} <= names
     assert len(plan.connections) == 6
 
 
@@ -44,6 +45,7 @@ def test_compile_plan_keeps_haoe_types_unverified_by_default() -> None:
     assert modelled["grid"] == "grid"
     assert modelled["battery"] == "battery"
     assert DEFAULT_TYPE_MAP["meter"] is None
+    assert DEFAULT_TYPE_MAP["ev_charger"] is None
 
 
 def test_prevalidate_blocks_unverified_types() -> None:
@@ -71,15 +73,62 @@ def test_unverified_plan_is_blocked_and_nothing_is_applied() -> None:
     assert any(issue.code == "haeo_type_unverified" for issue in report.issues)
 
 
-def test_apply_creates_hub_elements_connections() -> None:
+def test_apply_creates_hub_and_elements() -> None:
     driver = InMemoryHaeoDriver()
     plan = compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP)
     report = apply_plan(driver, plan)
     assert report.status == "applied"
     assert "solark_house" in driver.hubs
     assert set(driver.elements["solark_house"]) == {e.name for e in plan.elements}
-    assert ("grid", "meter") in driver.connections["solark_house"]
-    assert len(report.operations) == 1 + len(plan.elements) + len(plan.connections)
+    assert len(report.operations) == 1 + len(plan.elements)
+
+
+def test_every_connected_element_points_at_the_system_bus() -> None:
+    plan = compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP)
+    bus = "main_bus"
+    connected = {"grid", "battery", "inverter", "house", "ev"}
+    for element in plan.elements:
+        if element.name in connected:
+            assert element.connection == bus
+        elif element.name != bus:
+            assert element.connection is None
+    grid = next(e for e in plan.elements if e.name == "grid")
+    payload = grid.payload()
+    assert payload["connection"] == {"type": "connection_target", "value": bus}
+    assert payload["element_type"] == "grid"
+
+
+def test_grid_prices_come_from_our_published_price_sensors() -> None:
+    plan = compile_plan(example("tesla_cloud_primary.yaml"), VERIFIED_MAP)
+    grid = next(e for e in plan.elements if e.name == "grid")
+    pricing = grid.sections["pricing"]
+    assert pricing["price_source_target"] == {
+        "type": "entity",
+        "value": ["sensor.fleetassistant_tesla_home_demo_price_import"],
+    }
+    assert pricing["price_target_source"]["value"] == ["sensor.fleetassistant_tesla_home_demo_price_export"]
+
+
+def test_price_entities_can_be_overridden_per_site() -> None:
+    plan = compile_plan(
+        example("tesla_cloud_primary.yaml"),
+        VERIFIED_MAP,
+        price_entities={"grid": {"import_price_entity": "sensor.my_import"}},
+    )
+    grid = next(e for e in plan.elements if e.name == "grid")
+    assert grid.sections["pricing"]["price_source_target"]["value"] == ["sensor.my_import"]
+    assert grid.sections["pricing"]["price_target_source"]["value"][0].startswith("sensor.fleetassistant_")
+
+
+def test_battery_fields_are_sectioned_and_tagged() -> None:
+    plan = compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP)
+    battery = next(e for e in plan.elements if e.name == "battery")
+    assert battery.sections["storage"]["capacity"] == {"type": "constant", "value": 30.0}
+    assert battery.sections["limits"]["min_charge_percentage"]["value"] == 10
+    assert battery.sections["power_limits"]["max_power_target_source"]["value"] == 10.0
+    # HAEO's own form default, written explicitly rather than left implicit.
+    assert battery.sections["advanced"]["charge_limit_cost"]["value"] == 100.0
+    assert battery.profile_extras["degradation_cost"]["currency_per_kwh"] == 0.03
 
 
 def test_reapplying_the_same_plan_is_a_noop() -> None:
@@ -102,6 +151,15 @@ def test_changed_element_is_updated_not_recreated() -> None:
     report = apply_plan(driver, compile_plan(changed, VERIFIED_MAP))
     assert [op.type for op in report.operations] == ["update_element"]
     assert report.operations[0].name == "battery"
+
+
+def test_profile_keys_without_a_haoe_field_are_reported_not_written() -> None:
+    plan = compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP)
+    hvac = next(e for e in plan.elements if e.name == "hvac")
+    assert "min_setpoint_f" in hvac.ignored_keys
+    assert hvac.sections == {}
+    codes = {(issue.code, issue.path) for issue in prevalidate(plan)}
+    assert ("profile_key_unmapped", "main.hvac") in codes
 
 
 def test_version_mismatch_blocks_before_any_apply() -> None:

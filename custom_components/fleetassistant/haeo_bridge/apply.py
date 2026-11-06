@@ -16,10 +16,11 @@ from typing import Any, Literal, Protocol
 
 from ..const import SUPPORTED_HAEO_VERSIONS
 from ..profile.schema import Issue
+from . import contracts
 from .plan import ElementPlan, NetworkPlan
 from .prevalidate import prevalidate
 
-OperationType = Literal["create_hub", "update_hub", "remove_hub", "create_element", "update_element", "remove_element", "create_connection", "remove_connection"]
+OperationType = Literal["create_hub", "update_hub", "remove_hub", "create_element", "update_element", "remove_element"]
 Status = Literal["applied", "noop", "blocked", "partial"]
 
 
@@ -62,14 +63,16 @@ class ApplyReport:
 
     @property
     def applied(self) -> list[Operation]:
-        return [op for op in self.operations if op.type not in ("remove_hub", "remove_element", "remove_connection")]
+        return [op for op in self.operations if op.type not in ("remove_hub", "remove_element")]
 
 
 class HaeoDriver(Protocol):
     """Minimal contract the bridge needs from HAEO.
 
-    Deliberately narrow: everything is expressed as hub/element/connection
-    records keyed by *name* so the diff is name-stable across re-applies.
+    Deliberately narrow: everything is expressed as hub/element records keyed
+    by *name* so the diff is name-stable across re-applies. There is no
+    connection method because HAEO has no connection record: an element points
+    at a junction through its ``connection`` field (``fields.py``).
     """
 
     def haeo_version(self) -> str: ...
@@ -90,11 +93,6 @@ class HaeoDriver(Protocol):
 
     def remove_element(self, hub: str, name: str) -> None: ...
 
-    def list_connections(self, hub: str) -> set[tuple[str, str]]: ...
-
-    def create_connection(self, hub: str, source: str, target: str) -> None: ...
-
-    def remove_connection(self, hub: str, source: str, target: str) -> None: ...
 
 
 def check_version(detected: str | None, supported: tuple[str, ...] = SUPPORTED_HAEO_VERSIONS) -> Issue | None:
@@ -114,9 +112,13 @@ def _element_payload(element: ElementPlan) -> dict[str, Any]:
     """What HAEO stores for an element, and therefore what the diff compares.
 
     ``kind`` is a profile concept and is not part of it; it only picks the type
-    and decides which fields the parameters carry.
+    and decides which sections the element carries. The payload is exactly what
+    the element subentry flow writes (``fields.element_payload``), so the diff
+    compares like with like.
     """
-    return {"type": element.haeo_type, "data": {**element.params, **element.inputs}}
+    payload = element.payload()
+    data = {key: value for key, value in payload.items() if key not in (contracts.CONF_NAME, contracts.CONF_ELEMENT_TYPE)}
+    return {"type": element.haeo_type, "data": data}
 
 
 def apply_plan(
@@ -188,24 +190,21 @@ def apply_plan(
             ):
                 return report
         for name in sorted(set(live_elements) - desired_names):
+            if not contracts.PRUNE_UNKNOWN_ELEMENTS:
+                # Pruning is off until we track which subentries we created: HAEO's
+                # own switchboard junction is an element we do not own (OQ-018).
+                report.issues.append(
+                    Issue(
+                        "element_not_pruned",
+                        f"{hub.system_id}.{name}",
+                        f"element {name!r} is not in the plan; not deleted because ownership is untracked",
+                        severity="warning",
+                    )
+                )
+                continue
             if not _run(
                 report, Operation("remove_element", hub.system_id, name), driver.remove_element, dry_run, hub.hub, name
             ):
-                return report
-
-        desired_connections = {(c.source, c.target): c for c in plan.connections if c.system_id == hub.system_id}
-        if not desired_connections:
-            # Nothing to create; listing live links is only needed to prune them,
-            # and the flow driver cannot read them yet (OQ-017).
-            continue
-        live_connections = driver.list_connections(hub.hub)
-        for source, target in sorted(set(desired_connections) - live_connections):
-            operation = Operation("create_connection", hub.system_id, f"{source}->{target}")
-            if not _run(report, operation, driver.create_connection, dry_run, hub.hub, source, target):
-                return report
-        for source, target in sorted(live_connections - set(desired_connections)):
-            operation = Operation("remove_connection", hub.system_id, f"{source}->{target}")
-            if not _run(report, operation, driver.remove_connection, dry_run, hub.hub, source, target):
                 return report
 
     if report.operations and report.status == "noop":
@@ -241,7 +240,6 @@ class InMemoryHaeoDriver:
         self._version = version
         self.hubs: dict[str, dict[str, Any]] = {}
         self.elements: dict[str, dict[str, dict[str, Any]]] = {}
-        self.connections: dict[str, set[tuple[str, str]]] = {}
         self.calls: list[str] = []
 
     # -- protocol -----------------------------------------------------------
@@ -255,7 +253,6 @@ class InMemoryHaeoDriver:
         self.calls.append(f"create_hub:{name}")
         self.hubs[name] = {"options": options}
         self.elements.setdefault(name, {})
-        self.connections.setdefault(name, set())
 
     def update_hub(self, name: str, options: dict[str, Any]) -> None:
         self.calls.append(f"update_hub:{name}")
@@ -265,7 +262,6 @@ class InMemoryHaeoDriver:
         self.calls.append(f"remove_hub:{name}")
         self.hubs.pop(name, None)
         self.elements.pop(name, None)
-        self.connections.pop(name, None)
 
     def list_elements(self, hub: str) -> dict[str, dict[str, Any]]:
         return {name: dict(record) for name, record in self.elements.get(hub, {}).items()}
@@ -281,14 +277,3 @@ class InMemoryHaeoDriver:
     def remove_element(self, hub: str, name: str) -> None:
         self.calls.append(f"remove_element:{hub}/{name}")
         self.elements.get(hub, {}).pop(name, None)
-
-    def list_connections(self, hub: str) -> set[tuple[str, str]]:
-        return set(self.connections.get(hub, set()))
-
-    def create_connection(self, hub: str, source: str, target: str) -> None:
-        self.calls.append(f"create_connection:{hub}/{source}->{target}")
-        self.connections.setdefault(hub, set()).add((source, target))
-
-    def remove_connection(self, hub: str, source: str, target: str) -> None:
-        self.calls.append(f"remove_connection:{hub}/{source}->{target}")
-        self.connections.setdefault(hub, set()).discard((source, target))

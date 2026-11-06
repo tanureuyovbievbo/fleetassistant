@@ -14,6 +14,7 @@ import pytest
 
 from custom_components.fleetassistant.haeo_bridge import contracts
 from custom_components.fleetassistant.haeo_bridge.apply import apply_plan
+from custom_components.fleetassistant.haeo_bridge.fields import connection_target
 from custom_components.fleetassistant.haeo_bridge.flows import (
     EntryRecord,
     FlowError,
@@ -141,17 +142,36 @@ class FakeFlowPort:
         self.subentries[entry_id] = [s for s in self.subentries[entry_id] if s.subentry_id != subentry_id]
 
 
+def _constant(value: Any) -> dict[str, Any]:
+    return {"type": "constant", "value": value}
+
+
 def _plan() -> NetworkPlan:
     hub = HubPlan(system_id="main", hub="fleetassistant_main", horizon_mode="preset", preset_days=5)
     elements = [
-        ElementPlan(system_id="main", name="Grid", kind="grid", haeo_type="grid", params={}, inputs={}),
+        ElementPlan(system_id="main", name="main_bus", kind="junction", haeo_type="junction"),
+        ElementPlan(
+            system_id="main",
+            name="Grid",
+            kind="grid",
+            haeo_type="grid",
+            sections={
+                "pricing": {
+                    "price_source_target": {"type": "entity", "value": ["sensor.price_import"]},
+                    "price_target_source": {"type": "entity", "value": ["sensor.price_export"]},
+                },
+                "power_limits": {"max_power_source_target": _constant(24.0)},
+            },
+            connection="main_bus",
+        ),
         ElementPlan(
             system_id="main",
             name="Battery",
             kind="battery",
             haeo_type="battery",
-            params={"degradation_cost": {"currency_per_kwh": 0.04}},
-            inputs={"capacity_kwh": 27.0},
+            sections={"storage": {"capacity": _constant(27.0)}},
+            connection="main_bus",
+            profile_extras={"degradation_cost": {"currency_per_kwh": 0.04}},
         ),
     ]
     return NetworkPlan(
@@ -181,6 +201,10 @@ def _connection() -> ConnectionPlan:
     return ConnectionPlan(system_id="main", source="Grid", target="Battery")
 
 
+def _element(name: str, haeo_type: str, **kwargs: Any) -> ElementPlan:
+    return ElementPlan(system_id="main", name=name, kind=kwargs.pop("kind", haeo_type), haeo_type=haeo_type, **kwargs)
+
+
 def test_create_hub_answers_the_hub_flow_with_sectioned_data() -> None:
     port = FakeFlowPort()
     driver = FlowHaeoDriver(port)
@@ -191,7 +215,7 @@ def test_create_hub_answers_the_hub_flow_with_sectioned_data() -> None:
     assert created.title == "fleetassistant_main"
     assert created.options["common"]["horizon"] == {"value": "5_days"}
     assert created.options["advanced"]["debounce_seconds"] == contracts.DEFAULT_DEBOUNCE_SECONDS
-    assert [s.title for s in port.subentries[created.entry_id]] == ["Network", "Grid", "Battery"]
+    assert [s.title for s in port.subentries[created.entry_id]] == ["Network", "main_bus", "Grid", "Battery"]
 
 
 def test_second_apply_is_a_noop() -> None:
@@ -235,17 +259,27 @@ def test_flow_that_asks_for_more_fields_names_them() -> None:
     assert "max_power_source_target" in str(caught.value)
 
 
-def test_connections_block_before_any_flow_starts() -> None:
+def test_topology_is_a_connection_field_not_a_subentry() -> None:
+    """HAEO has no connection record: elements point at a junction by name."""
     port = FakeFlowPort()
     plan = _plan()
-    maybe = _with_elements(plan, plan.elements)
-    object.__setattr__(maybe, "connections", [_connection()])
+    plan = NetworkPlan(
+        site_id=plan.site_id,
+        deployment_profile=plan.deployment_profile,
+        authority=plan.authority,
+        hubs=plan.hubs,
+        elements=plan.elements,
+        connections=(_connection(),),
+        type_map=plan.type_map,
+    )
 
-    report = apply_plan(FlowHaeoDriver(port), maybe)
+    report = apply_plan(FlowHaeoDriver(port), plan)
 
-    assert report.status == "blocked"
-    assert {issue.code for issue in report.issues} == {"haeo_connection_fields_unverified"}
-    assert port.calls == []
+    assert report.status == "applied"
+    stored = {s.title: s for s in port.subentries[next(iter(port.hub_entries))]}
+    assert stored["Grid"].data["connection"] == connection_target("main_bus")
+    assert "connection" not in [s.subentry_type for s in stored.values()]
+    assert not any(call.startswith("init_subentry_flow:") and call.endswith(":connection") for call in port.calls)
 
 
 def test_relax_flag_change_drives_the_options_flow() -> None:
@@ -268,7 +302,7 @@ def test_unknown_element_type_is_refused_by_preflight() -> None:
     port = FakeFlowPort()
     plan = _with_elements(
         _plan(),
-        [ElementPlan(system_id="main", name="Meter", kind="meter", haeo_type="meter_bogus", params={}, inputs={}), _plan().elements[1]],
+        [_plan().elements[0], _element("Meter", "meter_bogus", kind="meter")],
     )
 
     report = apply_plan(FlowHaeoDriver(port), plan)
@@ -278,13 +312,15 @@ def test_unknown_element_type_is_refused_by_preflight() -> None:
     assert port.calls == []
 
 
-def test_removed_element_is_deleted_through_the_subentry_manager() -> None:
+def test_unexpected_element_is_reported_not_deleted() -> None:
+    """Pruning is off until we track ownership: HAEO creates its own junction."""
     port = FakeFlowPort()
     driver = FlowHaeoDriver(port)
     apply_plan(driver, _plan())
 
-    smaller = _with_elements(_plan(), _plan().elements[:1])
+    smaller = _with_elements(_plan(), _plan().elements[:2])
     report = apply_plan(driver, smaller)
 
-    assert [op.type for op in report.operations] == ["remove_element"]
-    assert any(call.startswith("remove_subentry:") for call in port.calls)
+    assert report.operations == []
+    assert any(issue.code == "element_not_pruned" for issue in report.issues)
+    assert not any(call.startswith("remove_subentry:") for call in port.calls)

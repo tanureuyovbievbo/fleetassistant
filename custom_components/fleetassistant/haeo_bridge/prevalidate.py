@@ -11,7 +11,7 @@ from collections.abc import Iterable
 
 from ..profile.schema import Issue
 from . import contracts
-from .plan import NetworkPlan
+from .plan import CONNECTED_KINDS, NetworkPlan
 
 #: HAEO element/entity name constraints are UNVERIFIED; this is the
 #: conservative subset that is safe for both HA names and entity ids.
@@ -101,6 +101,43 @@ def prevalidate(plan: NetworkPlan) -> list[Issue]:
             issues.append(Issue("duplicate_connection", connection.identity, "duplicate connection"))
         connection_ids.add(connection.identity)
 
+    # -- element fields (OQ-017) -------------------------------------------
+    for element in plan.elements:
+        for section, name in element.missing_fields:
+            issues.append(
+                Issue(
+                    "haeo_field_missing",
+                    f"{element.system_id}.{element.name}",
+                    f"HAEO field {section}.{name} is required for {element.kind!r} but the profile gives no value",
+                )
+            )
+        if element.kind in CONNECTED_KINDS:
+            if element.connection is None:
+                issues.append(
+                    Issue(
+                        "element_unconnected",
+                        f"{element.system_id}.{element.name}",
+                        "HAEO requires a connection target on this element",
+                    )
+                )
+            elif element.connection not in names_by_system.get(element.system_id, set()):
+                issues.append(
+                    Issue(
+                        "dangling_connection",
+                        f"{element.system_id}.{element.name}",
+                        f"connection target {element.connection!r} is not an element of this system",
+                    )
+                )
+        for key in element.ignored_keys:
+            issues.append(
+                Issue(
+                    "profile_key_unmapped",
+                    f"{element.system_id}.{element.name}",
+                    f"profile key {key!r} has no HAEO field and is not written",
+                    severity="warning",
+                )
+            )
+
     # -- horizons -----------------------------------------------------------
     for hub in plan.hubs:
         if hub.horizon_mode == "preset" and hub.preset_days is None:
@@ -121,7 +158,7 @@ def prevalidate(plan: NetworkPlan) -> list[Issue]:
 
     # -- battery degradation term (C-14) ------------------------------------
     for element in plan.elements:
-        if element.kind == "battery" and "degradation_cost" not in element.params:
+        if element.kind == "battery" and not element.profile_extras.get("degradation_cost"):
             issues.append(
                 Issue(
                     "degradation_missing",

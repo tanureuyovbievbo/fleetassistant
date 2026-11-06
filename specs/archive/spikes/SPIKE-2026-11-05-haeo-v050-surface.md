@@ -82,3 +82,25 @@ Reading the source first means the rest of the code is written against facts.
 - **Copying field names out of the HAEO user docs.** Rejected for now: the docs describe the UI, and UI labels are not stored keys. Source first, live second.
 - **Driving HAEO by writing its storage file.** Rejected outright (C-06), independent of what the spike found.
 - **Treating a live rejection as the source of truth without reading the code.** Rejected: a live error tells you a key is wrong, not which key is right.
+
+## Addendum 2026-11-05 — element field table (OQ-017)
+
+Read after the first addendum, in the same source-only mode:
+
+| File | What it settled |
+| --- | --- |
+| `core/schema/elements/grid.py` | Grid `pricing` is **required** (both directions); `power_limits` defaults to 100.0 kW |
+| `core/schema/elements/battery.py` | `storage`/`limits`/`power_limits`/`pricing`/`efficiency`/`advanced` sections; surfaced `charge_cost` and `discharge_cost` hints; no degradation field |
+| `core/schema/elements/load.py`, `solar.py` | `forecast` + `curtailment` sections; load surfaces `consumption_cost` |
+| `core/schema/elements/ev.py` | `ev` is a **vehicle** (capacity, energy per distance, SOC, connected), not a charger |
+| `core/schema/elements/policy.py` | `policy` is not connected: rules over `source`/`target` element names with a price |
+| `core/schema/sections/{common,connection_target}.py` | `connection` is a scalar `connection_target` field on each element — **no connection entries** |
+| `core/schema/__init__.py` | Constructors and type constants for the tagged values |
+
+Three design consequences, all recorded: topology renders into element payloads
+(ADR-0015), pruning stays off because HAEO creates its own switchboard junction
+(F-049), and `ev_charger` is unmapped until OQ-019 decides its carrier.
+
+The live-confirmation procedure is unchanged: these payloads have never been
+accepted by a running HAEO, so `ELEMENT_FIELDS_LIVE_VERIFIED` and
+`HAEO_SURFACE_LIVE_VERIFIED` stay `False`.

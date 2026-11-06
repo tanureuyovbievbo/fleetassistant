@@ -192,15 +192,6 @@ class FlowHaeoDriver:
     def preflight(self, plan: NetworkPlan) -> list[Issue]:
         """Refuse plans that would need field names we have not recorded."""
         issues: list[Issue] = []
-        if plan.connections and contracts.CONNECTION_FIELDS_UNRESOLVED:
-            issues.append(
-                Issue(
-                    "haeo_connection_fields_unverified",
-                    "connections",
-                    "HAEO connection fields (source/target keys) are not recorded yet; "
-                    "applying would create a network without links (OQ-017)",
-                )
-            )
         for element in plan.elements:
             if element.haeo_type is None:
                 issues.append(
@@ -267,14 +258,14 @@ class FlowHaeoDriver:
     def create_element(self, hub: str, element: ElementPlan) -> None:
         record = self._entry(hub)
         haeo_type = self._require_type(element)
-        data = {"name": element.name, "element_type": haeo_type, **element.params, **element.inputs}
+        data = element.payload()
         self._drive_subentry_flow(record.entry_id, haeo_type, data)
 
     def update_element(self, hub: str, name: str, element: ElementPlan) -> None:
         record = self._entry(hub)
         subentry = self._subentry(record, name)
-        haeo_type = self._require_type(element)
-        data = {"name": element.name, "element_type": haeo_type, **element.params, **element.inputs}
+        self._require_type(element)
+        data = element.payload()
         self._drive_subentry_flow(
             record.entry_id,
             subentry.subentry_type,
@@ -287,18 +278,6 @@ class FlowHaeoDriver:
         subentry = self._subentry(record, name)
         self._await(self._port.remove_subentry(record.entry_id, subentry.subentry_id))
 
-    def list_connections(self, hub: str) -> set[tuple[str, str]]:
-        # Connection subentry field names are unrecorded (OQ-017), so a plan with
-        # connections never reaches this: ``preflight`` blocks it first.
-        raise BridgeUnverified("reading HAEO connections", code="haeo_connection_fields_unverified")
-
-    def create_connection(self, hub: str, source: str, target: str) -> None:
-        raise BridgeUnverified("creating a HAEO connection", code="haeo_connection_fields_unverified")
-
-    def remove_connection(self, hub: str, source: str, target: str) -> None:
-        raise BridgeUnverified("removing a HAEO connection", code="haeo_connection_fields_unverified")
-
-    # -- internals ----------------------------------------------------------
     def _await(self, awaitable: Any) -> Any:
         import asyncio
 
