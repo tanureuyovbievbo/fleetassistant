@@ -6,12 +6,17 @@ domain: fleetassistant
 
 phase: build                     # discover | elaborate | plan | build | verify | release
 current:
-  epic: e07-telemetry-schema
-  deliverable: D07
+  epic: e02-hacs-packaging
+  deliverable: D02
   status: in-progress
-  step: verify                 # context-check | draft | verify | review | fix | gate | accepted
+  step: gate                  # context-check | draft | verify | review | fix | gate | accepted
 
-next_action: Write D01 (architecture spec), D11 (phased plan) and D12 (risk register) from the built system; the only open deliverables that need neither a human decision nor a live instance
+next_action: >-
+  Decide the version scheme (recommendation on the table: manifest/const/pyproject to
+  0.1.0a1 with the ladder aN -> rcN -> 0.1.0, plus ADR-0026; six files change and no tag
+  exists yet), then write D01, D11 and D12 from the built system. Everything else that does
+  not need a human decision or a live instance is done.
+
 previous_next_action: >
   Everything that does not need a human decision or a live Home Assistant + HAEO
   instance is now implemented: telemetry producer, device-pack schema, the
@@ -25,6 +30,14 @@ previous_next_action: >
   envelopes (RL-30) and decide the meter/thermostat/relay carriers (OQ-019).
 
 implemented:
+  - date: 2026-11-06
+    summary: >
+      First CI run on GitHub. Three remote-only defects fixed: unsorted manifest keys,
+      an `async_setup` without a module-level CONFIG_SCHEMA, and a LICENSE whose
+      edit-later note made GitHub report no licence. Brand assets generated; CI now
+      triggers on every branch push. PR #1 merged; `main` = a6cbfbc with all four CI
+      jobs green and a detected Apache-2.0 licence. 316 tests pass locally.
+    entry: docs/updates/2026-11-06-ci-and-merge.md
   - date: 2026-11-06
     summary: >
       Offline completion increment: telemetry producer (one envelope per
@@ -115,7 +128,7 @@ human_decisions_pending:
 
 last_session:
   date: 2026-11-06
-  entry: docs/updates/2026-11-06-switchboard-sentinel.md
+  entry: docs/updates/2026-11-06-ci-and-merge.md
   summary: >
     Topology fix: connected elements now target HAEO's own switchboard junction
     through a symbolic HUB_SWITCHBOARD resolved at apply time (ADR-0025); the

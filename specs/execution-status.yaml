@@ -4,7 +4,14 @@ updated: 2026-11-06
 epics:
   e00: { status: accepted, accepted_on: 2026-11-05, note: "bootstrap, docs only" }
   e01: { status: in-progress, note: "architecture spec drafted; rejected-alternatives section still to review" }
-  e02: { status: in-progress, note: "manifest/hacs.json/CI/release zip implemented; license decided (ADR-0023, Apache-2.0) with LICENSE/NOTICE; HACS submission still needs a release tag and store review" }
+  e02:
+    status: in-progress
+    note: >
+      manifest/hacs.json/CI/release zip implemented; license decided (ADR-0023, Apache-2.0).
+      GitHub CI green on main (a6cbfbc): Core, hassfest, HACS validation, pins. HACS
+      validation passes only because topics were set and the licence was visible on the
+      default branch - both fixed this session. Still open: a release tag (release.yml is
+      unexercised), the version scheme decision, and store review.
   e03:
     status: in-progress
     note: "schema v1 + validator + 3 examples + 4 invalid fixtures implemented and tested; published JSON Schema synced by tests"
