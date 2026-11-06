@@ -344,7 +344,6 @@ def compile_plan(
                 relax_impossible_plans=bool(profile.get("deployment", {}).get("relax_impossible_plans", True)),
             )
         )
-        elements.append(_bus_element(system_id))
         for raw_element in system["elements"]:
             element = _with_price_entities(raw_element, profile["site"]["id"], price_entities)
             kind = element["kind"]
@@ -356,7 +355,7 @@ def compile_plan(
                     kind=kind,
                     haeo_type=tm.lookup(kind),
                     sections=compiled.sections,
-                    connection=fields.bus_name(system_id) if kind in CONNECTED_KINDS else None,
+                    connection=fields.HUB_SWITCHBOARD if kind in CONNECTED_KINDS else None,
                     missing_fields=compiled.missing,
                     ignored_keys=compiled.ignored,
                     profile_extras={
@@ -443,13 +442,3 @@ def _degradation_policies(elements: Sequence[ElementPlan], system_id: str) -> li
     return policies
 
 
-def _bus_element(system_id: str) -> ElementPlan:
-    """The junction every connected element of a system points at."""
-    return ElementPlan(
-        system_id=system_id,
-        name=fields.bus_name(system_id),
-        kind="junction",
-        haeo_type=fields.JUNCTION_TYPE,
-        sections={},
-        connection=None,
-    )

@@ -6,6 +6,7 @@ from dataclasses import replace
 
 from helpers import deep_copy, example
 
+from custom_components.fleetassistant.haeo_bridge import fields
 from custom_components.fleetassistant.haeo_bridge.apply import (
     InMemoryHaeoDriver,
     apply_plan,
@@ -37,7 +38,9 @@ def test_compile_plan_from_gateway_example() -> None:
     assert len(plan.hubs) == 1
     assert plan.hubs[0].relax_impossible_plans is True
     names = {e.name for e in plan.elements}
-    assert {"main_bus", "grid", "battery", "ev", "hvac"} <= names
+    assert {"grid", "battery", "ev", "hvac"} <= names
+    # No junction of our own: HAEO already created the switchboard (ADR-0024).
+    assert not any(e.haeo_type == "junction" for e in plan.elements)
     assert len(plan.connections) == 6
 
 
@@ -87,18 +90,18 @@ def test_apply_creates_hub_and_elements() -> None:
     assert len(report.operations) == 1 + len(plan.elements)
 
 
-def test_every_connected_element_points_at_the_system_bus() -> None:
+def test_every_connected_element_points_at_the_hub_switchboard() -> None:
     plan = compile_plan(example("solark_gateway_primary.yaml"), VERIFIED_MAP)
-    bus = "main_bus"
     connected = {"grid", "battery", "inverter", "house", "ev"}
     for element in plan.elements:
         if element.name in connected:
-            assert element.connection == bus
-        elif element.name != bus:
+            assert element.connection == fields.HUB_SWITCHBOARD
+        else:
             assert element.connection is None
     grid = next(e for e in plan.elements if e.name == "grid")
     payload = grid.payload()
-    assert payload["connection"] == {"type": "connection_target", "value": bus}
+    # The plan carries the symbolic target; only the driver writes a real name.
+    assert payload["connection"] == {"type": "connection_target", "value": fields.HUB_SWITCHBOARD}
     assert payload["element_type"] == "grid"
 
 

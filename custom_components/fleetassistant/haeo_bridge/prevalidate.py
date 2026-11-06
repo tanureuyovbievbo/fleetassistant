@@ -10,7 +10,7 @@ import re
 from collections.abc import Iterable
 
 from ..profile.schema import Issue
-from . import contracts
+from . import contracts, fields
 from .plan import CONNECTED_KINDS, NetworkPlan
 
 #: HAEO element/entity name constraints are UNVERIFIED; this is the
@@ -120,6 +120,10 @@ def prevalidate(plan: NetworkPlan) -> list[Issue]:
                         "HAEO requires a connection target on this element",
                     )
                 )
+            elif fields.is_switchboard(element.connection):
+                # Resolved from the hub's own junction subentries at apply time
+                # (ADR-0025); the name is a translated string we cannot know here.
+                pass
             elif element.connection not in names_by_system.get(element.system_id, set()):
                 issues.append(
                     Issue(

@@ -62,3 +62,16 @@
 - [ ] An invalid profile never reaches the apply step. A repair issue is raised instead.
 - [ ] Re-applying the same profile produces zero operations.
 - [ ] Human review gate passed (design gate, then code gate).
+
+### Implementation note — switchboard sentinel (2026-11-06)
+
+Connected elements no longer point at a junction we invent. The compiled plan
+carries a symbolic `HUB_SWITCHBOARD`; `FlowHaeoDriver` resolves it from the hub's
+first `junction` subentry at apply time, blocks when the hub has none
+(`switchboard_missing`) and warns when it has several
+(`switchboard_ambiguous`, first wins). Junction subentries are reported as
+unmanaged, so the no-prune diff no longer reports HAEO's own element. See
+ADR-0025 and `docs/updates/2026-11-06-switchboard-sentinel.md`.
+
+What this closes: OQ-018 (decision half), RL-09, RL-34. What it does not: a live
+run must confirm HAEO accepts the resolved title as a connection target.

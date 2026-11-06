@@ -1,6 +1,6 @@
 # ADR-0024: Discover before you create
 
-- **Status:** accepted (rule is binding now; the driver does not implement it yet — see *Not yet implemented*)
+- **Status:** accepted and implemented (2026-11-06, ADR-0025)
 - **Date:** 2026-11-06
 - **Deciders:** project owner (human, m02051)
 - **Related:** C-25, ADR-0015 (topology as connection fields), OQ-018
@@ -77,7 +77,8 @@ Every write path reads the target first, and creation is the last resort.
 - `tests/unit/test_haeo_bridge.py` keeps the adoption and no-prune behaviour
   covered on the in-memory driver.
 
-## Not yet implemented
+## Implemented
 
-`HUB_SWITCHBOARD` resolution and the removal of `_bus_element` (OQ-018 option 1).
-Tracked in `docs/verification/REVIEW_LATER.md` as RL-34.
+`HUB_SWITCHBOARD` resolution and the removal of `_bus_element` landed with
+ADR-0025. Reuse of pre-existing elements, adoption-by-name and the no-prune rule
+are covered in `tests/unit/test_ha_driver.py`; RL-34 is closed.

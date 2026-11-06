@@ -55,11 +55,16 @@ CONNECTION_FIELD = "connection"
 CONNECTION_TARGET_TYPE = "connection_target"
 #: Element type used as the shared node elements connect to (``element_type.py``).
 JUNCTION_TYPE = "junction"
-#: Display name of the junction we create per system. The hub's own auto-created
-#: switchboard junction is left untouched (OQ-018).
-def bus_name(system_id: str) -> str:
-    """Name of the junction element our elements connect to."""
-    return f"{system_id}_bus"
+#: Symbolic connection target: HAEO's own switchboard junction, whose title HAEO
+#: takes from a translated string (F-062) and which therefore cannot be written
+#: into a plan. The driver resolves it from the hub's subentries at apply time
+#: (ADR-0025).
+HUB_SWITCHBOARD = "hub_switchboard"
+
+
+def is_switchboard(connection: str | None) -> bool:
+    """True when ``connection`` is the symbolic switchboard target."""
+    return connection == HUB_SWITCHBOARD
 
 
 @dataclass(frozen=True)

@@ -185,3 +185,12 @@ All notable changes to this project are documented here. The format follows [Kee
   `strict` xfail in `tests/unit/test_ha_driver.py` that fails today because the
   plan still synthesizes its own `<system>_bus` beside HAEO's switchboard.
 
+### Changed
+
+- **Connected elements now target HAEO's own switchboard junction** (ADR-0025).
+  The plan carries a symbolic `HUB_SWITCHBOARD` that `FlowHaeoDriver` resolves from
+  the hub's subentries at apply time; the synthetic `<system>_bus` junction is gone,
+  so a hub has one centre instead of two. Junction subentries are marked unmanaged
+  so the no-prune diff leaves them alone, and `preflight.py` prints `<hub
+  switchboard>` rather than a fabricated name. Closes OQ-018 (decision), RL-09, RL-34.
+

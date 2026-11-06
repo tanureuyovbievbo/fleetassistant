@@ -175,7 +175,7 @@ NON_ELEMENT_SUBENTRY_TYPES: Final[frozenset[str]] = frozenset({"network"})
 #: ``connection`` field on each element, holding
 #: ``{"type": "connection_target", "value": "<junction name>"}``
 #: (``core/schema/sections/common.py``). Topology is therefore expressed by
-#: pointing elements at a junction, which is what ``fields.bus_name`` does.
+#: pointing elements at a junction, which is HAEO's own switchboard (ADR-0025).
 CONNECTIONS_ARE_ELEMENT_FIELDS: Final = True
 
 #: Whether an apply may delete elements it did not create. HAEO's hub flow

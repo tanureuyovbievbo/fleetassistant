@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from custom_components.fleetassistant.haeo_bridge import contracts
+from custom_components.fleetassistant.haeo_bridge import contracts, fields
 from custom_components.fleetassistant.haeo_bridge.apply import apply_plan
 from custom_components.fleetassistant.haeo_bridge.fields import connection_target
 from custom_components.fleetassistant.haeo_bridge.flows import (
@@ -83,7 +83,8 @@ class FakeFlowPort:
         self.hub_entries[entry_id] = EntryRecord(entry_id=entry_id, title=str(name), options=dict(user_input))
         self.hub_options[entry_id] = {}
         self.subentries[entry_id] = [
-            SubentryRecord(subentry_id="sub_network", subentry_type=contracts.ELEMENT_TYPE_NETWORK, title="Network")
+            SubentryRecord(subentry_id="sub_network", subentry_type=contracts.ELEMENT_TYPE_NETWORK, title="Network"),
+            SubentryRecord(subentry_id="sub_switchboard", subentry_type="junction", title="Switchboard"),
         ]
         return {"type": "create_entry", "flow_id": flow_id, "result": {"entry_id": entry_id, "title": name}}
 
@@ -149,7 +150,6 @@ def _constant(value: Any) -> dict[str, Any]:
 def _plan() -> NetworkPlan:
     hub = HubPlan(system_id="main", hub="fleetassistant_main", horizon_mode="preset", preset_days=5)
     elements = [
-        ElementPlan(system_id="main", name="main_bus", kind="junction", haeo_type="junction"),
         ElementPlan(
             system_id="main",
             name="Grid",
@@ -162,7 +162,7 @@ def _plan() -> NetworkPlan:
                 },
                 "power_limits": {"max_power_source_target": _constant(24.0)},
             },
-            connection="main_bus",
+            connection=fields.HUB_SWITCHBOARD,
         ),
         ElementPlan(
             system_id="main",
@@ -170,7 +170,7 @@ def _plan() -> NetworkPlan:
             kind="battery",
             haeo_type="battery",
             sections={"storage": {"capacity": _constant(27.0)}},
-            connection="main_bus",
+            connection=fields.HUB_SWITCHBOARD,
             profile_extras={"degradation_cost": {"currency_per_kwh": 0.04}},
         ),
     ]
@@ -215,7 +215,7 @@ def test_create_hub_answers_the_hub_flow_with_sectioned_data() -> None:
     assert created.title == "fleetassistant_main"
     assert created.options["common"]["horizon"] == {"value": "5_days"}
     assert created.options["advanced"]["debounce_seconds"] == contracts.DEFAULT_DEBOUNCE_SECONDS
-    assert [s.title for s in port.subentries[created.entry_id]] == ["Network", "main_bus", "Grid", "Battery"]
+    assert [s.title for s in port.subentries[created.entry_id]] == ["Network", "Switchboard", "Grid", "Battery"]
 
 
 def test_second_apply_is_a_noop() -> None:
@@ -277,7 +277,7 @@ def test_topology_is_a_connection_field_not_a_subentry() -> None:
 
     assert report.status == "applied"
     stored = {s.title: s for s in port.subentries[next(iter(port.hub_entries))]}
-    assert stored["Grid"].data["connection"] == connection_target("main_bus")
+    assert stored["Grid"].data["connection"] == connection_target("Switchboard")
     assert "connection" not in [s.subentry_type for s in stored.values()]
     assert not any(call.startswith("init_subentry_flow:") and call.endswith(":connection") for call in port.calls)
 
@@ -318,7 +318,7 @@ def test_unexpected_element_is_reported_not_deleted() -> None:
     driver = FlowHaeoDriver(port)
     apply_plan(driver, _plan())
 
-    smaller = _with_elements(_plan(), _plan().elements[:2])
+    smaller = _with_elements(_plan(), _plan().elements[:1])  # drop the battery
     report = apply_plan(driver, smaller)
 
     assert report.operations == []
@@ -373,7 +373,6 @@ def test_a_blocking_port_is_accepted() -> None:
     assert port.hub_entries, "the hub flow was answered"
 
 
-@pytest.mark.xfail(strict=True, reason="ADR-0024: the plan still synthesizes its own bus instead of reusing HAEO's switchboard")
 def test_a_preexisting_switchboard_is_reused_not_duplicated() -> None:
     """A hub already owns one centre. The plan must adopt it, not add a second."""
     plan = _plan()
@@ -398,3 +397,50 @@ def test_a_preexisting_switchboard_is_reused_not_duplicated() -> None:
     assert [s.title for s in stored] == ["Switchboard"]
     grid = next(s for s in port.subentries["haeo_1"] if s.title == "Grid")
     assert grid.data["connection"] == connection_target("Switchboard")
+
+
+def test_a_hub_without_a_junction_cannot_resolve_the_switchboard() -> None:
+    """HAEO always creates one; its absence means we are not talking to HAEO."""
+    port = FakeFlowPort()
+    port.hub_entries["haeo_1"] = EntryRecord(
+        entry_id="haeo_1", title="fleetassistant_main", options={** _plan().hubs[0].config_data()}
+    )
+    port.hub_options["haeo_1"] = {}
+    port.subentries["haeo_1"] = [
+        SubentryRecord(subentry_id="sub_network", subentry_type=contracts.ELEMENT_TYPE_NETWORK, title="System")
+    ]
+
+    report = apply_plan(FlowHaeoDriver(port), _plan())
+
+    assert report.status == "partial"
+    assert {issue.code for issue in report.issues} >= {"switchboard_missing"}
+    assert report.error is not None and "no junction subentry" in report.error
+
+
+def test_several_junctions_report_which_one_was_used() -> None:
+    """A user may add their own junction; the switchboard is the first HAEO made."""
+    port = FakeFlowPort()
+    driver = FlowHaeoDriver(port)
+    apply_plan(driver, _plan())
+
+    entry_id = next(iter(port.subentries))
+    port.subentries[entry_id].append(
+        SubentryRecord(subentry_id="sub_annex", subentry_type="junction", title="Annex panel")
+    )
+    report = apply_plan(driver, _plan())
+
+    codes = {issue.code for issue in report.issues}
+    assert "switchboard_ambiguous" in codes
+    assert all(issue.severity == "warning" for issue in report.issues if issue.code == "switchboard_ambiguous")
+    stored = {s.title: s for s in port.subentries[entry_id]}
+    assert stored["Grid"].data["connection"] == connection_target("Switchboard")
+    assert stored["Annex panel"].subentry_type == "junction"
+
+
+def test_the_hubs_own_switchboard_is_never_reported_as_garbage() -> None:
+    port = FakeFlowPort()
+    report = apply_plan(FlowHaeoDriver(port), _plan())
+
+    assert report.status == "applied"
+    assert not [issue for issue in report.issues if issue.code == "element_not_pruned"]
+    assert set(port.subentries[next(iter(port.subentries))][1].data) == set()

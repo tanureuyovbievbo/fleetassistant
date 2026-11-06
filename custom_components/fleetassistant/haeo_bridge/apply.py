@@ -16,7 +16,7 @@ from typing import Any, Literal, Protocol
 
 from ..const import SUPPORTED_HAEO_VERSIONS
 from ..profile.schema import Issue
-from . import contracts
+from . import contracts, fields
 from .plan import ElementPlan, NetworkPlan
 from .prevalidate import prevalidate
 
@@ -118,7 +118,29 @@ def _element_payload(element: ElementPlan) -> dict[str, Any]:
     """
     payload = element.payload()
     data = {key: value for key, value in payload.items() if key not in (contracts.CONF_NAME, contracts.CONF_ELEMENT_TYPE)}
+    if fields.is_switchboard(element.connection):
+        # The plan carries a symbolic target; HAEO stores the resolved junction
+        # name, which only the driver knows (ADR-0025). Comparing it here would
+        # report a change on every apply.
+        data.pop(fields.CONNECTION_FIELD, None)
     return {"type": element.haeo_type, "data": data}
+
+
+def _differs(live: Any, desired: dict[str, Any], element: ElementPlan) -> bool:
+    """Compare stored and planned payloads, ignoring a resolved symbolic target."""
+    if not fields.is_switchboard(element.connection):
+        return live != desired
+    stripped_live = _without_connection(live)
+    return stripped_live != desired
+
+
+def _without_connection(payload: Any) -> Any:
+    if not isinstance(payload, dict):
+        return payload
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        return payload
+    return {**payload, "data": {k: v for k, v in data.items() if k != fields.CONNECTION_FIELD}}
 
 
 def apply_plan(
@@ -179,7 +201,7 @@ def apply_plan(
                     element,
                 ):
                     return report
-            elif live_elements[element.name].get("payload") != payload and not _run(
+            elif _differs(live_elements[element.name].get("payload"), payload, element) and not _run(
                 report,
                 Operation("update_element", element.system_id, element.name),
                 driver.update_element,
@@ -190,6 +212,9 @@ def apply_plan(
             ):
                 return report
         for name in sorted(set(live_elements) - desired_names):
+            if live_elements[name].get("managed") is False:
+                # HAEO's own switchboard junction: not ours to remove (ADR-0024).
+                continue
             if not contracts.PRUNE_UNKNOWN_ELEMENTS:
                 # Pruning is off until we track which subentries we created: HAEO's
                 # own switchboard junction is an element we do not own (OQ-018).
@@ -207,6 +232,7 @@ def apply_plan(
             ):
                 return report
 
+    report.issues.extend(getattr(driver, "warnings", []) or [])
     if report.operations and report.status == "noop":
         report.status = "applied"
     return report

@@ -14,9 +14,10 @@ epics:
       S3-migrations: { status: open, note: "seam exists in profile/loader.py:migrate; no v2 yet" }
   e04:
     status: in-progress
-    note: "HAEO v0.5.0 surface, element field table, charger carrier and degradation policy recorded from source (F-040..F-056); flow driver, HA port and topology-as-field implemented (ADR-0014..ADR-0017); apply still blocked by the live gate (ADR-0012), OQ-018, OQ-021, OQ-022"
+    note: "HAEO v0.5.0 surface, element field table, charger carrier and degradation policy recorded from source (F-040..F-056); flow driver, HA port, topology-as-field and the switchboard sentinel implemented (ADR-0014..ADR-0018, ADR-0024, ADR-0025); apply still blocked by the live gate (ADR-0012) and OQ-019/OQ-022"
     stories:
       S1-spike: { status: in-progress, note: "source spike done (specs/archive/spikes/SPIKE-2026-11-05-haeo-v050-surface.md); live half blocked by SPIKE-LIVE-ACCESS" }
+      S7-topology: { status: done, note: "elements target HAEO's own switchboard via HUB_SWITCHBOARD (ADR-0025); no synthetic junction" }
       S2-plan-compile: { status: done }
       S10-units: { status: done, note: "efficiency is a ratio; always written, range-checked (ADR-0018)" }
       S9-write-path: { status: done, note: "runtime arms the flow driver behind apply_haeo_plan (default off); executor thread + loop-bridged port; audit + repair issue" }

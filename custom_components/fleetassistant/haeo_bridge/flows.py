@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
 from ..profile.schema import Issue
-from . import contracts
+from . import contracts, fields
 from .apply import DriverError
 from .plan import ElementPlan, NetworkPlan
 
@@ -187,6 +187,8 @@ class FlowHaeoDriver:
         self._port = port
         self._advanced_options = advanced_options
         self.log: list[str] = []
+        #: Non-blocking findings the apply should surface as warnings.
+        self.warnings: list[Issue] = []
 
     # -- preflight ----------------------------------------------------------
     def preflight(self, plan: NetworkPlan) -> list[Issue]:
@@ -249,7 +251,8 @@ class FlowHaeoDriver:
         record = self._entry(hub)
         return {
             subentry.title: {
-                "payload": {"type": subentry.subentry_type, "data": _normalise_element_data(subentry.data)}
+                "payload": {"type": subentry.subentry_type, "data": _normalise_element_data(subentry.data)},
+                "managed": self._is_managed(record, subentry),
             }
             for subentry in record.subentries
             if subentry.subentry_type not in contracts.NON_ELEMENT_SUBENTRY_TYPES
@@ -258,14 +261,14 @@ class FlowHaeoDriver:
     def create_element(self, hub: str, element: ElementPlan) -> None:
         record = self._entry(hub)
         haeo_type = self._require_type(element)
-        data = element.payload()
+        data = self._payload(record, element)
         self._drive_subentry_flow(record.entry_id, haeo_type, data)
 
     def update_element(self, hub: str, name: str, element: ElementPlan) -> None:
         record = self._entry(hub)
         subentry = self._subentry(record, name)
         self._require_type(element)
-        data = element.payload()
+        data = self._payload(record, element)
         self._drive_subentry_flow(
             record.entry_id,
             subentry.subentry_type,
@@ -307,6 +310,48 @@ class FlowHaeoDriver:
             if subentry.title == name and subentry.subentry_type not in contracts.NON_ELEMENT_SUBENTRY_TYPES:
                 return subentry
         raise DriverError(f"HAEO element {name!r} does not exist", code="haeo_element_missing")
+
+    def _payload(self, record: EntryRecord, element: ElementPlan) -> dict[str, Any]:
+        """Build the subentry payload, resolving the symbolic switchboard target."""
+        data = element.payload()
+        if not fields.is_switchboard(element.connection):
+            return data
+        data[fields.CONNECTION_FIELD] = fields.connection_target(self._switchboard(record))
+        return data
+
+    def _switchboard(self, record: EntryRecord) -> str:
+        """Name of the hub's own switchboard junction (ADR-0025).
+
+        HAEO creates exactly one junction when the hub is created, titled from a
+        translated string, so the name is read from the hub instead of written
+        into the plan. More than one junction is legal (a user may add their own),
+        and the switchboard is the first one HAEO created.
+        """
+        junctions = [s for s in record.subentries if s.subentry_type == fields.JUNCTION_TYPE]
+        if not junctions:
+            raise DriverError(
+                f"hub {record.title!r} has no junction subentry, so HAEO's switchboard cannot be resolved",
+                code="switchboard_missing",
+            )
+        if len(junctions) > 1:
+            self.warnings.append(
+                Issue(
+                    "switchboard_ambiguous",
+                    record.title,
+                    f"hub has {len(junctions)} junctions; using {junctions[0].title!r} as the switchboard",
+                    severity="warning",
+                )
+            )
+        return junctions[0].title
+
+    def _is_managed(self, record: EntryRecord, subentry: SubentryRecord) -> bool:
+        """Whether this bridge owns the subentry, so removal is ours to decide."""
+        if subentry.subentry_type != fields.JUNCTION_TYPE:
+            return True
+        try:
+            return subentry.title != self._switchboard(record)
+        except DriverError:
+            return True
 
     def _require_type(self, element: ElementPlan) -> str:
         if element.haeo_type is None:

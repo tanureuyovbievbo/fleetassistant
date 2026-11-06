@@ -21,6 +21,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "custom_components"))
 
 from fleetassistant.device_packs import controls_from_pack, load_packs  # noqa: E402
+from fleetassistant.haeo_bridge import fields  # noqa: E402
 from fleetassistant.haeo_bridge.plan import compile_plan  # noqa: E402
 from fleetassistant.haeo_bridge.prevalidate import prevalidate  # noqa: E402
 from fleetassistant.pricing.compiler import resolve_tariffs  # noqa: E402
@@ -41,6 +42,7 @@ class Preflight:
     controls: int = 0
     references: list[str] = field(default_factory=list)
     tariffs: dict[str, Any] = field(default_factory=dict)
+    topology: str = ""
 
     @property
     def ok(self) -> bool:
@@ -55,6 +57,7 @@ class Preflight:
             "hubs": self.hubs,
             "elements": self.elements,
             "controls": self.controls,
+            "topology": self.topology,
             "references": self.references,
             "tariffs": self.tariffs,
             "errors": [issue.as_dict() for issue in self.errors],
@@ -117,6 +120,11 @@ def run_preflight(
     result.hubs = len(plan.hubs)
     result.elements = len(plan.elements)
     result.controls = len(profile.get("controls") or [])
+    connections = {element.connection for element in plan.elements if element.connection}
+    if fields.HUB_SWITCHBOARD in connections:
+        # Resolved against the live hub at apply time (ADR-0025); offline we can
+        # only report which symbolic target the plan carries.
+        result.topology = "<hub switchboard>"
     plan_issues = prevalidate(plan)
     result.errors.extend(issue for issue in plan_issues if issue.is_error)
     result.warnings.extend(issue for issue in plan_issues if not issue.is_error)
@@ -170,6 +178,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"profile          {payload['profile']}")
         print(f"site             {payload['site_id']} ({payload['deployment_profile']})")
         print(f"plan             {payload['hubs']} hub(s), {payload['elements']} element(s), {payload['controls']} control(s)")
+        if payload["topology"]:
+            print(f"topology         connected elements -> {payload['topology']} (resolved at apply)")
         for name, tariff in payload["tariffs"].items():
             print(
                 f"price {name:<14} {tariff['points']} point(s), authority {tariff['authority']}, "

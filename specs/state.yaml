@@ -11,7 +11,7 @@ current:
   status: in-progress
   step: verify                 # context-check | draft | verify | review | fix | gate | accepted
 
-next_action: Implement OQ-018 option 1 (HUB_SWITCHBOARD sentinel; delete _bus_element) — ADR-0024/RL-34
+next_action: Write D01 (architecture spec), D11 (phased plan) and D12 (risk register) from the built system; the only open deliverables that need neither a human decision nor a live instance
 previous_next_action: >
   Everything that does not need a human decision or a live Home Assistant + HAEO
   instance is now implemented: telemetry producer, device-pack schema, the
@@ -115,11 +115,13 @@ human_decisions_pending:
 
 last_session:
   date: 2026-11-06
-  entry: docs/updates/2026-11-06-license.md
+  entry: docs/updates/2026-11-06-switchboard-sentinel.md
   summary: >
-    Licence settled by the human: Apache-2.0 (ADR-0023) with LICENSE, NOTICE,
-    pyproject declaration and tests/unit/test_licensing.py; OQ-003 removed from
-    human_decisions_pending. Copyright holder left blank (RL-33). 312 tests passing.
+    Topology fix: connected elements now target HAEO's own switchboard junction
+    through a symbolic HUB_SWITCHBOARD resolved at apply time (ADR-0025); the
+    synthetic <system>_bus junction and fields.bus_name are deleted, junction
+    subentries are unmanaged so the no-prune diff ignores them, and preflight
+    prints <hub switchboard>. OQ-018 decided, RL-09/RL-34 closed. 316 tests.
 
 decisions:
   - id: ADR-0023
