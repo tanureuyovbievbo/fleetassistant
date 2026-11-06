@@ -1,0 +1,32 @@
+[project]
+name = "fleetassistant"
+version = "0.1.0"
+description = "Open site-level DERMS that composes HAEO inside Home Assistant"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+addopts = "-q -m 'not live'"
+markers = ["live: requires a live Home Assistant + HAEO instance"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["site_profiles/examples"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = false
+files = ["custom_components/fleetassistant"]

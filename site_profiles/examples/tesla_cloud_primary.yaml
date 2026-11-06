@@ -1,0 +1,90 @@
+schema_version: 1
+# Illustrative profile — cloud-primary Tesla home.
+#
+# All numbers here are PLACEHOLDERS for schema demonstration, not a real tariff,
+# product specification, or savings claim (C-22). The homeowner grants only
+# export-limit consent; the site is coarse authority (C-12).
+site:
+  id: tesla_home_demo
+  name: "Tesla home (cloud-primary demo)"
+  timezone: America/Los_Angeles
+  currency: USD
+  notes: "Vendor cloud APIs only: Tesla Fleet. No local device access on this site."
+deployment:
+  profile: cloud_primary
+  notes: "HA hosted per tenant in our cloud; home reached only through vendor cloud APIs."
+consent:
+  granted: true
+  granted_at: "2026-11-01"
+  scope: "export_limit_only"
+  subject: "homeowner"
+systems:
+  - id: main
+    name: "Main house"
+    haeo:
+      hub: "tesla_home_main"
+      horizon:
+        mode: preset
+        preset_days: 5
+    elements:
+      - id: grid
+        kind: grid
+        import_limit_kw: 12.0
+        export_limit_kw: 7.6
+        vendor: utility
+      - id: pv
+        kind: solar
+        peak_kw: 8.2
+        vendor: Tesla
+        forecast_entity: sensor.tesla_solar_forecast
+      - id: powerwall
+        kind: battery
+        capacity_kwh: 27.0
+        max_charge_kw: 5.0
+        max_discharge_kw: 5.0
+        min_soc_pct: 5
+        max_soc_pct: 100
+        vendor: Tesla
+        degradation_cost:
+          currency_per_kwh: 0.04
+          source: "PLACEHOLDER internal assumption — replace with a sourced warranty-throughput model before any savings claim"
+      - id: house
+        kind: load
+        forecast_entity: sensor.home_load_forecast
+    connections:
+      - from: grid
+        to: house
+      - from: pv
+        to: house
+      - from: powerwall
+        to: house
+controls:
+  - id: export_limit
+    element: grid
+    capability: set_export_limit
+    unit: kW
+    min: 0.0
+    max: 7.6
+    rate_limit_per_minute: 6
+    hysteresis: 0.2
+    consent_required: true
+    backing: api
+    authority: coarse
+    fail_safe_value: 7.6
+    notes: "Tesla Fleet API quota math must be shown before promising a cadence (C-24)."
+pricing:
+  provider:
+    type: tou
+    fallback: 0.38
+    blocks:
+      - start: "16:00"
+        end: "21:00"
+        price: 0.52
+        label: "PLACEHOLDER peak"
+      - start: "21:00"
+        end: "06:00"
+        days: [mon, tue, wed, thu, fri]
+        price: 0.22
+        label: "PLACEHOLDER off-peak"
+  notes: "PLACEHOLDER schedule for schema demonstration; a real tariff is a rule pack (D10)."
+rule_packs: []

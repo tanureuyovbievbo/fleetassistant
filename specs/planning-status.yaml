@@ -1,0 +1,9 @@
+# Discover-phase checklist (run-planning skill).
+schema_version: 1
+steps:
+  survey-context:  { status: done, date: 2026-11-05, note: "greenfield repo, README only" }
+  scope-work:      { status: done, date: 2026-11-05, artifact: specs/product/SCOPE_LATEST.yaml }
+  research-first:  { status: partial, date: 2026-11-05, artifact: docs/verification/FACTS_LEDGER.md, note: "HAEO manifest/hacs/releases verified; docs queued" }
+  elaborate-spec:  { status: not-started, note: "is D01 itself" }
+  plan-release:    { status: done, date: 2026-11-05, artifact: specs/release-plan.yaml }
+  slice-tasks:     { status: partial, note: "epic capsules have stories; task YAMLs come from plan-work per epic" }

@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Core (ruff, boundary probes, pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tooling
+        run: python -m pip install --upgrade pip ruff pytest pyyaml
+      - name: Lint
+        run: ruff check .
+      - name: Constraint probes (C-06, C-08, C-09)
+        run: python tools/check_boundaries.py
+      - name: Tests
+        run: python -m pytest -q
+
+  hassfest:
+    name: Home Assistant hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration
+
+  manifest-pins:
+    name: Dependency and version pins (C-08, C-23)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No pip requirements, HAEO pinned
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("custom_components/fleetassistant/manifest.json").read_text())
+          assert manifest["requirements"] == [], "C-08: no pip requirements allowed"
+          const = Path("custom_components/fleetassistant/const.py").read_text()
+          assert "SUPPORTED_HAEO_VERSIONS" in const, "C-23: HAEO version must be pinned"
+          print("manifest pins ok")
+          PY

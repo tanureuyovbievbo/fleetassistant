@@ -1,0 +1,69 @@
+# Owner = role, never a model. Status: todo | doing | done | blocked
+schema_version: 1
+epic: e01
+tasks:
+  - id: e01-t01
+    story: S1
+    owner: source-verifier
+    title: Fetch HAEO docs for hub, element, connection, horizon, pricing, shadow prices, repairs
+    inputs: [docs/verification/SOURCES.md]
+    outputs: [docs/verification/SOURCES.md, docs/verification/FACTS_LEDGER.md, docs/verification/OPEN_QUESTIONS.md]
+    verify: "Each new F-ID has a URL, a fetch date, and a quoted passage."
+    status: todo
+  - id: e01-t02
+    story: S1
+    owner: source-verifier
+    title: Fetch HA developer docs for config flow, options flow, repairs, REST, WebSocket, Application Credentials
+    inputs: [docs/verification/SOURCES.md]
+    outputs: [docs/verification/FACTS_LEDGER.md]
+    verify: "Same as e01-t01."
+    status: todo
+  - id: e01-t03
+    story: S2
+    owner: architect
+    title: Draft D01 sections 1–9
+    inputs: [docs/deliverables/D01-architecture-spec.md, docs/constraints/CONSTRAINTS.md, docs/verification/FACTS_LEDGER.md]
+    outputs: [docs/deliverables/D01-architecture-spec.md]
+    verify: "Each section filled. Each claim has F-ID, constraint ID, or UNVERIFIED with an OQ."
+    status: todo
+  - id: e01-t04
+    story: S3
+    owner: architect
+    title: Write rejected alternatives
+    outputs: [docs/deliverables/D01-architecture-spec.md]
+    verify: "All five named alternatives present, each with reasons and a constraint link."
+    status: todo
+  - id: e01-t05
+    story: S4
+    owner: architect
+    title: Data-flow diagrams
+    outputs: [docs/deliverables/D01-architecture-spec.md]
+    verify: "Mermaid blocks render. Every arrow is labelled with the protocol or API."
+    status: todo
+  - id: e01-t06
+    story: S5
+    owner: reviewer
+    title: Constraints review
+    outputs: [_workspace/D01_review_constraints.md]
+    verify: "Verdict PASS, or FAIL with C-ID findings."
+    status: todo
+  - id: e01-t07
+    story: S5
+    owner: claims-auditor
+    title: Claims audit
+    outputs: [_workspace/D01_review_claims.md]
+    verify: "Verdict PASS, or FAIL with line findings."
+    status: todo
+  - id: e01-t08
+    story: S6
+    owner: reviewer
+    title: Threat model pass
+    outputs: [specs/tech-architecture/SECURITY_PLAN_LATEST.md]
+    verify: "A STRIDE table exists per data flow."
+    status: todo
+  - id: e01-t09
+    story: S7
+    owner: human
+    title: Gate review
+    verify: "Human sets execution-status e01 to accepted."
+    status: todo

@@ -1,0 +1,146 @@
+schema_version: 1
+# Illustrative profile — gateway-primary site with local protocol control.
+#
+# Sol-Ark inverter, Shelly Pro 3EM metering, a mini-split AC, and an EV charger.
+# PLACEHOLDER numbers only (C-22). Full authority + hardware fail-safe (C-12, C-15).
+site:
+  id: solark_adu_demo
+  name: "Sol-Ark + Shelly gateway demo"
+  timezone: America/Los_Angeles
+  currency: USD
+deployment:
+  profile: gateway_primary
+  fail_safe:
+    contactor: true
+    local_automation: true
+    max_hold_minutes: 30
+  notes: "HAOS on a wired mini PC. Inverter + relays are local; cloud loss must not strand the house."
+consent:
+  granted: true
+  granted_at: "2026-11-01"
+  scope: "full_site_dispatch"
+  subject: "homeowner"
+systems:
+  - id: main
+    name: "Main house"
+    haeo:
+      hub: "solark_house"
+      horizon:
+        mode: forecast_sensor
+        forecast_entity: sensor.weather_hourly_forecast
+    elements:
+      - id: grid
+        kind: grid
+        import_limit_kw: 24.0
+        export_limit_kw: 12.0
+        vendor: utility
+      - id: meter
+        kind: meter
+        topology: whole_home
+        vendor: Shelly
+        model: "Pro 3EM"
+      - id: inverter
+        kind: solar
+        peak_kw: 12.0
+        vendor: Sol-Ark
+        forecast_entity: sensor.solark_pv_forecast
+      - id: battery
+        kind: battery
+        capacity_kwh: 30.0
+        max_charge_kw: 10.0
+        max_discharge_kw: 10.0
+        min_soc_pct: 10
+        max_soc_pct: 98
+        vendor: EG4
+        degradation_cost:
+          currency_per_kwh: 0.03
+          source: "PLACEHOLDER internal assumption — replace with a sourced warranty-throughput model"
+      - id: house
+        kind: load
+        forecast_entity: sensor.house_load_forecast
+      - id: hvac
+        kind: thermostat
+        min_setpoint_f: 62
+        max_setpoint_f: 80
+        vendor: ecobee
+      - id: ev
+        kind: ev_charger
+        max_amps: 48
+        phases: 3
+        # Placeholder calendar: a deferrable load needs a run-window calendar
+        # (ADR-0016). The installer supplies a real one, or a rule pack creates it.
+        window_calendar: calendar.replace_me_ev_charging_window
+        max_charge_kw: 11.0
+        vendor: Wallbox
+    connections:
+      - from: grid
+        to: meter
+      - from: meter
+        to: house
+      - from: inverter
+        to: battery
+      - from: battery
+        to: house
+      - from: hvac
+        to: house
+      - from: ev
+        to: house
+controls:
+  - id: grid_export_limit
+    element: grid
+    capability: set_export_limit
+    unit: kW
+    min: 0.0
+    max: 12.0
+    rate_limit_per_minute: 12
+    hysteresis: 0.1
+    consent_required: true
+    backing: local
+    authority: full
+    fail_safe_value: 12.0
+    entity_id: number.solark_export_limit_kw
+  - id: battery_target
+    element: battery
+    capability: set_battery_target
+    unit: "%"
+    min: 10.0
+    max: 98.0
+    rate_limit_per_minute: 6
+    hysteresis: 1.0
+    consent_required: false
+    backing: local
+    authority: full
+    fail_safe_value: 50.0
+    entity_id: number.eg4_battery_target_soc
+    scale: 1.0
+  - id: ev_amps
+    element: ev
+    capability: set_charger_amps
+    unit: A
+    min: 6.0
+    max: 48.0
+    rate_limit_per_minute: 6
+    hysteresis: 2.0
+    consent_required: true
+    backing: local
+    authority: full
+    fail_safe_value: 16.0
+    entity_id: number.wallbox_max_amps
+  - id: hvac_setpoint
+    element: hvac
+    capability: set_thermostat_setpoint
+    unit: F
+    min: 62.0
+    max: 80.0
+    rate_limit_per_minute: 4
+    hysteresis: 1.0
+    consent_required: true
+    backing: api
+    authority: full
+    fail_safe_value: 72.0
+pricing:
+  provider:
+    type: flat
+    currency_per_kwh: 0.31
+  notes: "PLACEHOLDER flat rate; real tariffs and export curves are rule packs."
+rule_packs: []

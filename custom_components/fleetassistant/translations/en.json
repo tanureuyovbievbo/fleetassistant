@@ -1,0 +1,80 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Create a fleetassistant site",
+        "description": "One config entry = one site = one tenant boundary. HAEO is configured for you by the bridge; do not create hubs by hand in fleet mode.",
+        "data": {
+          "site_name": "Site name",
+          "site_id": "Site id (lowercase identifier)",
+          "deployment_profile": "Deployment profile"
+        }
+      }
+    },
+    "error": {
+      "invalid_profile": "The generated site profile failed validation. Check the repair issue for the exact path.",
+      "invalid_json": "The profile JSON could not be parsed.",
+      "invalid_profile_json": "The profile JSON failed validation. Check the repair issue for the exact path."
+    },
+    "abort": {
+      "already_configured": "This site id is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "fleetassistant options",
+        "description": "Edit the site profile or the HAEO hub options. Leave the profile JSON empty to keep the stored profile.",
+        "data": {
+          "relax_impossible_plans": "Relax impossible plans",
+          "preset_days": "Planning horizon (days)",
+          "apply_haeo_plan": "Write the plan to HAEO now (provisioning)",
+          "profile_json": "Site profile JSON (optional)",
+          "price_authority": "Price authority",
+          "dispatch_enabled": "Drive local controls from the optimizer plan (gateway sites)"
+        },
+        "data_description": {
+          "relax_impossible_plans": "Tells HAEO to return an approximate plan instead of no plan when constraints cannot all be met. Fleet reliability prefers an approximate plan.",
+          "preset_days": "Horizon length for systems that plan from a preset. A forecast sensor on a system overrides this.",
+          "apply_haeo_plan": "When on, setup provisions the HAEO hub, elements and pricing from the compiled plan. Leave off until the HAEO payloads have been confirmed on a live instance.",
+          "profile_json": "Paste a full site profile to replace the stored one. Invalid profiles are rejected and the stored profile is kept.",
+          "price_authority": "Which tariff wins when a cloud quote and your own schedule both price an hour. Leave empty to use the deployment profile's default (cloud-primary: cloud, gateway: user)."
+        }
+      }
+    },
+    "error": {
+      "invalid_json": "The profile JSON could not be parsed.",
+      "invalid_profile": "The profile JSON failed validation. Check the repair issue for the exact path."
+    }
+  },
+  "issues": {
+    "invalid_profile": {
+      "title": "fleetassistant site profile is invalid",
+      "description": "Site profile error at {path} ({code}): {message}. Fix the profile and reload the {entry} integration."
+    },
+    "haeo_apply_incomplete": {
+      "title": "HAEO provisioning incomplete",
+      "description": "The plan was not fully written to HAEO: status `{status}`. {path}: {message} (`{code}`). Nothing in your home was changed; open the integration diagnostics for the operation list."
+    },
+    "entity_reference": {
+      "title": "fleetassistant needs an entity that is missing",
+      "description": "{code} at {path}: {message}. Create or fix that entity, then reload the {entry} integration. Until then the optimizer plans without it."
+    },
+    "control_unbound": {
+      "title": "fleetassistant cannot reach a control",
+      "description": "{path}: {message}. Add the entity id to that control in the site profile so the gateway can drive it."
+    },
+    "dispatch_failed_safe": {
+      "title": "fleetassistant fell back to safe defaults",
+      "description": "The {entry} site stopped receiving usable plans ({reason}) and its controls were set to their fail-safe values. Check the optimizer and the connection; dispatch resumes when a fresh plan arrives."
+    },
+    "price_divergence": {
+      "title": "Two price sources disagree",
+      "description": "The {input} forecast for {entry} has {periods} period(s) where the cloud and user tariffs differ. The {authority} authority chose one; the worst period at {at} was cloud {cloud} vs user {user}, and {chosen} was used. Change the price authority if this is the wrong choice."
+    },
+    "price_degraded": {
+      "title": "Price forecast is incomplete",
+      "description": "The {input} forecast for {entry} has {stale} stale and {missing} unpriced period(s). Those periods cannot support a firm performance claim."
+    }
+  }
+}

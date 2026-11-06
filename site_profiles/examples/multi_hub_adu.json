@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "site": {
+    "id": "multi_hub_adu_demo",
+    "name": "Main house + ADU (two systems, one site)",
+    "timezone": "America/Los_Angeles",
+    "currency": "USD",
+    "notes": "One tenant, one HA, two HAEO hubs (C-01). Each system is separately optimized (C-11)."
+  },
+  "deployment": {
+    "profile": "gateway_primary",
+    "fail_safe": {
+      "contactor": true,
+      "local_automation": true,
+      "max_hold_minutes": 30
+    }
+  },
+  "consent": {
+    "granted": true,
+    "granted_at": "2026-11-01",
+    "scope": "full_site_dispatch",
+    "subject": "homeowner"
+  },
+  "systems": [
+    {
+      "id": "main_house",
+      "name": "Main house",
+      "haeo": {
+        "hub": "adu_main_house",
+        "horizon": { "mode": "preset", "preset_days": 3 }
+      },
+      "elements": [
+        { "id": "grid", "kind": "grid", "import_limit_kw": 20.0, "export_limit_kw": 10.0 },
+        { "id": "pv", "kind": "solar", "peak_kw": 9.5, "forecast_entity": "sensor.main_pv_forecast" },
+        {
+          "id": "battery",
+          "kind": "battery",
+          "capacity_kwh": 20.0,
+          "max_charge_kw": 8.0,
+          "max_discharge_kw": 8.0,
+          "min_soc_pct": 10,
+          "max_soc_pct": 95,
+          "degradation_cost": {
+            "currency_per_kwh": 0.03,
+            "source": "PLACEHOLDER internal assumption; replace with a sourced model"
+          }
+        },
+        { "id": "house", "kind": "load", "forecast_entity": "sensor.main_load_forecast" }
+      ],
+      "connections": [
+        { "from": "grid", "to": "house" },
+        { "from": "pv", "to": "house" },
+        { "from": "battery", "to": "house" }
+      ]
+    },
+    {
+      "id": "adu",
+      "name": "Accessory dwelling unit",
+      "haeo": {
+        "hub": "adu_secondary",
+        "horizon": { "mode": "preset", "preset_days": 3 }
+      },
+      "elements": [
+        { "id": "adu_meter", "kind": "meter", "topology": "sub_panel" },
+        { "id": "adu_pv", "kind": "solar", "peak_kw": 4.0, "forecast_entity": "sensor.adu_pv_forecast" },
+        { "id": "adu_load", "kind": "load", "forecast_entity": "sensor.adu_load_forecast" },
+        { "id": "adu_water_heater", "kind": "relay", "rated_kw": 4.5 }
+      ],
+      "connections": [
+        { "from": "adu_meter", "to": "adu_load" },
+        { "from": "adu_pv", "to": "adu_load" },
+        { "from": "adu_water_heater", "to": "adu_load" }
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "adu_shed",
+      "element": "adu_water_heater",
+      "capability": "shed_circuit",
+      "unit": "bool",
+      "min": 0,
+      "max": 1,
+      "rate_limit_per_minute": 2,
+      "hysteresis": 0,
+      "consent_required": true,
+      "backing": "local",
+      "authority": "full",
+      "fail_safe_value": 0,
+      "notes": "Relay-only shed; hardware contactor stays closed on comms loss (C-15)."
+    }
+  ],
+  "pricing": {
+    "provider": { "type": "flat", "currency_per_kwh": 0.29 }
+  },
+  "rule_packs": []
+}

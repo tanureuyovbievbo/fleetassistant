@@ -1,0 +1,191 @@
+# Session state — read at session start, update at session end (see AGENTS.md).
+schema_version: 1
+workflow_mode: team-pr          # team-pr | solo-git
+project: fleetassistant
+domain: fleetassistant
+
+phase: build                     # discover | elaborate | plan | build | verify | release
+current:
+  epic: e07-telemetry-schema
+  deliverable: D07
+  status: in-progress
+  step: verify                 # context-check | draft | verify | review | fix | gate | accepted
+
+next_action: Write D01 (architecture spec), D11 (phased plan) and D12 (risk register) from the built system; the only open deliverables that need neither a human decision nor a live instance
+previous_next_action: >
+  Everything that does not need a human decision or a live Home Assistant + HAEO
+  instance is now implemented: telemetry producer, device-pack schema, the
+  commitments guard in the dispatch path, price/reference repairs, fleet
+  allocation math, the offline preflight tool and the version matrix. The next
+  step cannot be automated away: run `pytest -m live` against HA 2026.1.1 + HAEO
+  v0.5.0 (`.github/workflows/haeo-contract.yml`) and, when the three
+  `xfail(strict=True)` contract tests begin failing, flip
+  `HAEO_SURFACE_LIVE_VERIFIED`, `ELEMENT_FIELDS_LIVE_VERIFIED` and
+  `HA_PORT_LIVE_VERIFIED` in one commit. After that, publish the producer's
+  envelopes (RL-30) and decide the meter/thermostat/relay carriers (OQ-019).
+
+implemented:
+  - date: 2026-11-06
+    summary: >
+      Offline completion increment: telemetry producer (one envelope per
+      quality/source/authority so a command is never reported as a measurement),
+      data-only device packs with cloud-cannot-be-full-authority validation (ADR-0022),
+      the commitments guard refusing a double-booked dispatch before any device write,
+      divergence/degraded price repairs (RL-22 closed) and state-subscribed reference
+      re-checks (RL-24 closed), merit-order fleet allocation with simultaneity and
+      feedback trim, an offline preflight CLI, and the D08 version matrix. 288 tests
+      pass. Telemetry transport added afterwards (sinks + bounded spool; runtime wiring
+      still open, RL-30). Open: live verification gate, RL-29..RL-32.
+    entry: docs/updates/2026-11-06-offline-completion.md
+  - date: 2026-11-06
+    summary: >
+      Dispatch loop (ADR-0021): a fresh plan (<= 15 min) is applied through the safety
+      pipeline on a 60 s timer; 30 min of optimizer silence writes the declared
+      fail-safe setpoints once per outage; a good plan clears the lockout; unload
+      forces the fallback. Plans come from entities the installer mapped
+      (plan_entity), never from guessed HAEO ids. Read-back now asks the state machine
+      (RL-23 closed). 213 tests pass. Open: RL-26 (no contactor), RL-27 (no read
+      quality), RL-28 (fixed cadence), OQ-022 (which entity carries a plan value).
+    entry: docs/updates/2026-11-06-dispatch-loop.md
+  - date: 2026-11-06
+    summary: >
+      Dual tariff sources merged under an explicit authority (cloud | user |
+      user_unless_stale) with staleness fallback, divergence capture, and provenance in
+      attributes rather than in the value; published price sensors now exist with the
+      object ids the compiled plan references, closing the gap where a plan pointed at
+      entities nobody published (ADR-0019). A latent import cycle between pricing.series
+      and haeo_bridge was removed. 164 tests pass. Open: RL-20 (no cloud fetcher),
+      RL-22 (divergences raise no repair).
+    entry: docs/updates/2026-11-06-tariff-sources.md
+  - date: 2026-11-06
+    summary: >
+      OQ-021 closed: efficiency is a 0..1 ratio (segment multiplies, unit doc says
+      ratio), HAEO's 95.0 default would create energy, so the plan always writes
+      efficiency and the profile rejects out-of-range values (ADR-0018, RL-19).
+      136 tests pass.
+    entry: docs/updates/2026-11-06-efficiency-units.md
+  - date: 2026-11-06
+    summary: >
+      First live write path wired behind the apply_haeo_plan option (default off), with
+      executor-thread execution, loop-bridged port, audit record and repair issue.
+      Review register REVIEW_LATER.md (RL-01..RL-18) records every deliberate gap; a
+      test keeps code references and rows in sync. 134 tests pass.
+    entry: docs/updates/2026-11-06-first-write-path.md
+  - date: 2026-11-06
+    summary: >
+      Charger compiles to deferrable_load (ADR-0016); battery degradation compiles to a
+      policy rule on the battery's discharge (ADR-0017); HAEO percentage fields are
+      written as 0..1 ratios after F-052 exposed a 100x unit error. 130 tests pass.
+      Evidence: SOURCES S-029..S-032, FACTS F-050..F-056, OQ-021/OQ-022 opened.
+    entry: docs/updates/2026-11-06-charger-and-degradation.md
+  - date: 2026-11-06
+    summary: >
+      HAEO element field table from the pinned v0.5.0 source (tagged values, section
+      names, required keys for grid/battery/load/solar/ev/policy) plus topology as a
+      per-element connection field with a synthesised bus junction; the bridge no longer
+      prunes elements it did not create. 127 tests pass offline; apply stays gated.
+      Evidence: SOURCES S-021..S-028, FACTS F-040..F-049, ADR-0015, OQ-019/OQ-020.
+    entry: docs/updates/2026-11-06-element-fields.md
+  - date: 2026-11-06
+    summary: >
+      HAEO flow driver: hubs via the config flow, hub settings via the options flow,
+      elements via subentry flows, with a narrow FlowPort seam and a Home Assistant
+      implementation that is the only module touching hass. Apply reports partial and
+      stops on the first refused write; unrecorded connection fields block before any
+      flow starts. 122 tests pass offline; the live gate stays shut.
+    entry: docs/updates/2026-11-05-ha-flow-driver.md
+  - date: 2026-11-05
+    summary: >
+      e04 source spike: HAEO v0.5.0's hub/element/connection surface read from the pinned
+      tag and recorded in haeo_bridge/contracts.py, SOURCES S-007..S-016, FACTS F-015..F-030.
+      Elements are config subentries, not entries; 13 element types; no meter/thermostat/relay.
+      Apply stays blocked until a live instance confirms.
+    entry: docs/updates/2026-11-05-haeo-source-spike.md
+  - date: 2026-11-05
+    summary: >
+      v1 core (profile schema + loader, HAEO bridge, pricing, adapters, executor, audit,
+      ledger, telemetry) and HA glue (config flow, options flow, runtime repairs),
+      114 tests passing, ruff and boundary probes clean.
+    entry: docs/updates/2026-11-05-code-increment-1.md
+
+human_decisions_pending:
+  - id: SPIKE-LIVE-ACCESS
+    topic: Provide a live HA + HAEO v0.5.0 instance (or run the haeo-contract workflow) so OQ-002/OQ-006/OQ-016/OQ-017/OQ-018/OQ-019 can close
+    needed_by: e04 acceptance
+
+last_session:
+  date: 2026-11-06
+  entry: docs/updates/2026-11-06-switchboard-sentinel.md
+  summary: >
+    Topology fix: connected elements now target HAEO's own switchboard junction
+    through a symbolic HUB_SWITCHBOARD resolved at apply time (ADR-0025); the
+    synthetic <system>_bus junction and fields.bus_name are deleted, junction
+    subentries are unmanaged so the no-prune diff ignores them, and preflight
+    prints <hub switchboard>. OQ-018 decided, RL-09/RL-34 closed. 316 tests.
+
+decisions:
+  - id: ADR-0023
+    date: 2026-11-06
+    title: Apache-2.0 for this repository; the hosted fleet stays closed
+    why: patent grant plus contribution clause matter for utility buyers; no network clause, so no source-release duty for the fleet; HAEO stays MIT and is not relicensed
+    entry: specs/adr/ADR-0023-apache-2-0-license.md
+  - id: ADR-0017
+    date: 2026-11-06
+    status: accepted
+    summary: >
+      Battery degradation_cost becomes a policy element with one rule pricing the
+      battery's discharge, because HAEO places a rule's price on the source's outbound
+      edges for a single source and a wildcard destination. Rejected: charge_limit_cost,
+      salvage_value, folding the term into the import price, leaving it unwritten.
+  - id: ADR-0016
+    date: 2026-11-06
+    status: accepted
+    summary: >
+      A controllable charger is HAEO's deferrable_load (window calendar + power cap),
+      not its ev element, which models a vehicle. Charger control stays an adapter
+      capability; the profile requires window_calendar. Rejected: ev with invented
+      vehicle data, load, buffer, leaving the kind unmapped.
+  - id: ADR-0015
+    date: 2026-11-05
+    status: accepted
+    summary: >
+      Topology is a per-element connection target field, not a connection subentry; the
+      plan synthesises one junction bus per system and the bridge never deletes elements
+      it did not create (HAEO owns a switchboard junction of its own). Rejected: connection
+      entries, pruning to enforce convergence, guessing ownership from names.
+  - id: ADR-0014
+    date: 2026-11-06
+    status: accepted
+    summary: >
+      HAEO is provisioned by answering its config/options/subentry flows through a narrow
+      port; direct subentry creation and HAEO storage writes are rejected. A form we
+      cannot answer stops the apply with a named FlowError instead of guessing. Deletion
+      is the only direct subentry call, because no flow exists for it.
+  - id: ADR-0013
+    date: 2026-11-05
+    status: proposed
+    summary: >
+      grid/solar/battery/load/ev_charger map directly to HAEO element types. A meter is not
+      an element; thermostat and relay are control surfaces whose energy is carried by a
+      load-type element. Unmapped kinds block the apply rather than picking a near neighbour.
+  - id: ADR-0012
+    date: 2026-11-05
+    summary: >
+      The bridge refuses to apply while HAEO names are unverified. Unverified facts are
+      represented as None/False plus an explicit issue code, never as a plausible guess.
+  - id: ADR-0011
+    date: 2026-11-05
+    summary: Product renamed from HA-OPENDERMS (domain openderms) to fleetassistant (domain fleetassistant) to match the repo. Resolves OQ-008.
+  - id: ADR-0001..ADR-0010
+    date: 2026-11-05
+    summary: Brief non-negotiables recorded as accepted ADRs.
+  - id: no-code-bootstrap
+    date: 2026-11-05
+    summary: >
+      Bootstrap created documentation and file structure only; implementation followed in a
+      separate session (superseded by the 2026-11-05 implemented entry above).
+
+last_session:
+  date: 2026-11-06
+  role: source-verifier (e04 spike, source half)
+  update_entry: docs/updates/2026-11-05-ha-flow-driver.md

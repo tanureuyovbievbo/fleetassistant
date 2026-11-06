@@ -1,0 +1,34 @@
+# Architecture Decision Records
+
+Format: Context · Decision · Consequences · Rejected alternatives. New ADRs take the next number. To supersede an ADR, add a new ADR and set the old one's status to `superseded by ADR-NNNN`. Never delete an ADR.
+
+| ADR | Title | Status |
+|-----|-------|--------|
+| [ADR-0001](ADR-0001-tenant-per-container.md) | Tenant per container; never fork HA Core | accepted |
+| [ADR-0002](ADR-0002-single-control-adapter-interface.md) | Single control-adapter interface | accepted |
+| [ADR-0003](ADR-0003-haeo-via-config-flow-bridge.md) | HAEO only through the config-flow API, through one versioned bridge | accepted |
+| [ADR-0004](ADR-0004-pin-haeo-version.md) | Pin HAEO version (working target v0.5.0) | accepted |
+| [ADR-0005](ADR-0005-site-profile-source-of-truth.md) | Site profile as code is the source of truth | accepted |
+| [ADR-0006](ADR-0006-generic-pricing-rule-packs.md) | Generic pricing, rule packs, priced degradation | accepted |
+| [ADR-0007](ADR-0007-relax-impossible-plans-and-prevalidation.md) | "Relax impossible plans" ON in fleet mode; pre-validation | accepted |
+| [ADR-0008](ADR-0008-integration-not-addon.md) | HACS integration, not an HAOS add-on | accepted |
+| [ADR-0009](ADR-0009-provisioning-security.md) | Provisioning and connectivity security baseline | accepted |
+| [ADR-0010](ADR-0010-model-agnostic-agentic-workflow.md) | Model-agnostic agentic workflow | accepted |
+| [ADR-0011](ADR-0011-product-rename-fleetassistant.md) | Product renamed to fleetassistant | accepted |
+| [ADR-0012](ADR-0012-unverified-facts-block-apply.md) | Unverified external facts block an apply | accepted |
+| [ADR-0013](ADR-0013-element-per-kind-mapping.md) | One HAEO element per profile kind; unmapped kinds block | proposed |
+| [ADR-0014](ADR-0014-flow-driven-provisioning.md) | Provision HAEO by answering its flows, never by writing its records | accepted |
+
+| [ADR-0023](ADR-0023-apache-2-0-license.md) | Apache-2.0 for this repository; the fleet cloud stays closed | accepted | 2026-11-06 |
+| [ADR-0024](ADR-0024-discover-before-create.md) | Discover before you create: read the target, reuse what exists, delete only our own | accepted, implemented | 2026-11-06 |
+| [ADR-0025](ADR-0025-switchboard-sentinel.md) | Elements target HAEO's own switchboard junction via a symbolic sentinel | accepted, implemented | 2026-11-06 |
+
+Next ADRs expected: Modbus access path (D06, OQ-013), fleet stack (D08), meter/thermostat carriers (OQ-019).
+| [ADR-0015](ADR-0015-topology-as-connection-fields.md) | Topology is a per-element `connection` field; the bridge never prunes | accepted | 2026-11-05 |
+| [ADR-0016](ADR-0016-charger-is-a-deferrable-load.md) | A charger is a deferrable load, not an `ev` | accepted | 2026-11-06 |
+| [ADR-0017](ADR-0017-battery-degradation-as-policy-rule.md) | Battery degradation is a priced `policy` rule | accepted | 2026-11-06 |
+| [ADR-0018](ADR-0018-write-physics-fields-explicitly.md) | Write physics fields explicitly; never inherit a HAEO default | accepted | 2026-11-06 |
+| [ADR-0019](ADR-0019-tariff-authority-and-staleness.md) | Two tariff sources, one explicit authority, provenance off the value | accepted | 2026-11-06 |
+| [ADR-0020](ADR-0020-references-and-adapter-glue.md) | Entities are checked at setup, and device I/O never leaves the adapter layer | accepted | 2026-11-06 |
+| [ADR-0021](ADR-0021-dispatch-loop-and-fail-safe.md) | Fresh plans only, fail safe once per outage, and the loop is the only caller of the executor | accepted | 2026-11-06 |
+| [ADR-0022](ADR-0022-device-packs-over-vendor-clients.md) | HA integrations are the device transport; brands enter as data-only device packs | proposed | 2026-11-06 |

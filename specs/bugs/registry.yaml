@@ -1,0 +1,13 @@
+# Defect registry. Fix-or-log rule: see CONVENTIONS.md §2.
+schema_version: 1
+bugs: []
+# Entry shape:
+# - id: BUG-001
+#   title: ""
+#   found: YYYY-MM-DD
+#   found_by: role
+#   severity: low | medium | high | critical
+#   area: bridge | adapters | pricing | telemetry | profile | fleet | docs
+#   status: open | in-progress | fixed | wont-fix
+#   repro: ""
+#   spec: specs/bugs/BUG-001.md
