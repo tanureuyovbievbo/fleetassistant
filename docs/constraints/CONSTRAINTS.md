@@ -119,3 +119,8 @@ Each constraint has a **Check**. The reviewer agent applies the check (see `.pi/
 ### C-24 — Vendor ToS risk and quota math
 - **Rule:** Name the terms-of-service risk for every adapter that targets a closed ecosystem. Show the quota math before promising telemetry cadence.
 - **Check:** Each vendor adapter section has a "ToS risk" paragraph and a "Quota math" table, with sources or UNVERIFIED marks.
+
+### C-25 — Discover before you create
+- **Rule:** Read the target before writing it. Reuse a pre-existing hub record. Delete only what our own previous plan created.
+- **Check:** No `create_*` call for a target absent from the preceding `list_*` read. A pre-existing switchboard is adopted, never duplicated. A foreign subentry is reported, never removed.
+- **Where:** `specs/adr/ADR-0024-discover-before-create.md`

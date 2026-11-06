@@ -177,3 +177,11 @@ All notable changes to this project are documented here. The format follows [Kee
   validator rejects values outside 1..100 with a warning below 50 (F-057..F-060,
   ADR-0018, RL-19).
 - Product renamed from HA-OPENDERMS (domain `openderms`) to fleetassistant (domain `fleetassistant`) to match the repository (ADR-0011). Resolves OQ-008.
+### Added
+
+- **Discovery-before-creation rule (ADR-0024, C-25).** Every write path must read
+  the target first, adopt a pre-existing element instead of adding a second one,
+  and delete only subentries our own previous plan declared. Enforced by a
+  `strict` xfail in `tests/unit/test_ha_driver.py` that fails today because the
+  plan still synthesizes its own `<system>_bus` beside HAEO's switchboard.
+

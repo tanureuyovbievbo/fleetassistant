@@ -11,7 +11,8 @@ current:
   status: in-progress
   step: verify                 # context-check | draft | verify | review | fix | gate | accepted
 
-next_action: >
+next_action: Implement OQ-018 option 1 (HUB_SWITCHBOARD sentinel; delete _bus_element) — ADR-0024/RL-34
+previous_next_action: >
   Everything that does not need a human decision or a live Home Assistant + HAEO
   instance is now implemented: telemetry producer, device-pack schema, the
   commitments guard in the dispatch path, price/reference repairs, fleet

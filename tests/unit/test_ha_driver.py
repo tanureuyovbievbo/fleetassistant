@@ -371,3 +371,30 @@ def test_a_blocking_port_is_accepted() -> None:
 
     assert report.status == "applied"
     assert port.hub_entries, "the hub flow was answered"
+
+
+@pytest.mark.xfail(strict=True, reason="ADR-0024: the plan still synthesizes its own bus instead of reusing HAEO's switchboard")
+def test_a_preexisting_switchboard_is_reused_not_duplicated() -> None:
+    """A hub already owns one centre. The plan must adopt it, not add a second."""
+    plan = _plan()
+    port = FakeFlowPort()
+    hub = plan.hubs[0]
+    # HAEO's own records, as they exist right after a hub is created (F-061/F-062).
+    port.hub_entries["haeo_1"] = EntryRecord(
+        entry_id="haeo_1",
+        title=hub.hub,
+        options={**hub.config_data(), **hub.options_data()},
+    )
+    port.hub_options["haeo_1"] = {}
+    port.subentries["haeo_1"] = [
+        SubentryRecord(subentry_id="sub_network", subentry_type=contracts.ELEMENT_TYPE_NETWORK, title="System"),
+        SubentryRecord(subentry_id="sub_switchboard", subentry_type="junction", title="Switchboard"),
+    ]
+
+    report = apply_plan(FlowHaeoDriver(port), plan)
+
+    assert report.status in {"applied", "noop"}
+    stored = [s for s in port.subentries["haeo_1"] if s.subentry_type == "junction"]
+    assert [s.title for s in stored] == ["Switchboard"]
+    grid = next(s for s in port.subentries["haeo_1"] if s.title == "Grid")
+    assert grid.data["connection"] == connection_target("Switchboard")

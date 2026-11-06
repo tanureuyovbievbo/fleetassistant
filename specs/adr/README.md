@@ -20,6 +20,7 @@ Format: Context · Decision · Consequences · Rejected alternatives. New ADRs t
 | [ADR-0014](ADR-0014-flow-driven-provisioning.md) | Provision HAEO by answering its flows, never by writing its records | accepted |
 
 | [ADR-0023](ADR-0023-apache-2-0-license.md) | Apache-2.0 for this repository; the fleet cloud stays closed | accepted | 2026-11-06 |
+| [ADR-0024](ADR-0024-discover-before-create.md) | Discover before you create: read the target, reuse what exists, delete only our own | accepted (rule binding, driver pending) | 2026-11-06 |
 
 Next ADRs expected: Modbus access path (D06, OQ-013), fleet stack (D08), meter/thermostat carriers (OQ-019).
 | [ADR-0015](ADR-0015-topology-as-connection-fields.md) | Topology is a per-element `connection` field; the bridge never prunes | accepted | 2026-11-05 |
